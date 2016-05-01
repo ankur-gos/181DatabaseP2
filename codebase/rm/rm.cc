@@ -1,4 +1,4 @@
-
+#include "rbfm.h"
 #include "rm.h"
 
 RelationManager* RelationManager::_rm = 0;
@@ -13,6 +13,8 @@ RelationManager* RelationManager::instance()
 
 RelationManager::RelationManager()
 {
+  RecordBasedFileManager * rbfm;
+  rbfm = RecordBasedFileManager.instance()
 }
 
 RelationManager::~RelationManager()
@@ -81,7 +83,12 @@ RC RelationManager::scan(const string &tableName,
       const vector<string> &attributeNames,
       RM_ScanIterator &rm_ScanIterator)
 {
-    return -1;
+  FileHandle fh; //open 1st page
+  vector<Attribute> &recordDescriptor;
+  _rm->readAttribute(tableName, recordDescriptor);
+  rm_ScanIterator = RM_ScanIterator(fh, recordDescriptor, conditionAttribute, 
+                                    compOp, value, attributeNames, rbfm);
+  return rm_ScanIterator;
 }
 
 

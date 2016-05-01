@@ -462,3 +462,18 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
         data_offset += fieldSize;
     }
 }
+RC RecordBasedFileManager::scan(FileHandle &fileHandle,
+                                const vector<Attribute> &recordDescriptor,
+                                const string &conditionAttribute,
+                                const CompOp compOp,                  // comparision type such as "<" and "="
+                                const void *value,                    // used in the comparison
+                                const vector<string> &attributeNames, // a list of projected attributes
+                                RBFM_ScanIterator &rbfm_ScanIterator)
+                                {
+                                    //how do we determine which rids to read from? We should figure it out at this level.
+                                    //also need to filter initialize with filter information
+                                    RBFM_ScanIterator rmsi = RBFM_ScanIterator(fileHandle, recordDescriptor, conditionAttribute,
+                                                                                compOp, value, attributeNames);
+                                    return rmsi;
+}
+
