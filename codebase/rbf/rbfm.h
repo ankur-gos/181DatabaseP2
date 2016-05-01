@@ -7,13 +7,27 @@
 
 #include "../rbf/pfm.h"
 
+#define INT_SIZE                4
+#define REAL_SIZE               4
+#define VARCHAR_LENGTH_SIZE     4
+
+#define SUCCESS 0
+
+#define RBFM_CREATE_FAILED 1
+#define RBFM_MALLOC_FAILED 2
+#define RBFM_OPEN_FAILED   3
+#define RBFM_APPEND_FAILED 4
+#define RBFM_READ_FAILED   5
+#define RBFM_WRITE_FAILED  6
+#define RBFM_SLOT_DN_EXIST 7
+
 using namespace std;
 
 // Record ID
 typedef struct
 {
-  unsigned pageNum;	// page number
-  unsigned slotNum; // slot number in the page
+    uint32_t pageNum; // page number
+    uint32_t slotNum; // slot number in the page
 } RID;
 
 
@@ -29,14 +43,38 @@ struct Attribute {
 };
 
 // Comparison Operator (NOT needed for part 1 of the project)
-typedef enum { EQ_OP = 0, // = 
-           LT_OP,      // <
-           LE_OP,      // <=
-           GT_OP,      // >
-           GE_OP,      // >=
-           NE_OP,      // !=
-           NO_OP	   // no condition
+typedef enum 
+{ 
+    EQ_OP = 0,  // no condition// = 
+    LT_OP,      // <
+    LE_OP,      // <=
+    GT_OP,      // >
+    GE_OP,      // >=
+    NE_OP,      // !=
+    NO_OP       // no condition
 } CompOp;
+
+// Slot directory headers for page organization
+// See chapter 9.6.2 of the cow book or lecture 3 slide 16 for more information
+typedef struct SlotDirectoryHeader
+{
+    uint16_t freeSpaceOffset;
+    uint16_t recordEntriesNumber;
+} SlotDirectoryHeader;
+
+// Assignment 2 tip: Make offset negative to represent a forwarding address
+// Negative offset => length = page #, offset = -slot #
+typedef struct SlotDirectoryRecordEntry
+{
+    uint32_t length; 
+    int32_t offset;
+} SlotDirectoryRecordEntry;
+
+typedef SlotDirectoryRecordEntry* SlotDirectory;
+
+typedef uint16_t ColumnOffset;
+
+typedef uint16_t RecordLength;
 
 
 /********************************************************************************
@@ -93,7 +131,7 @@ public:
   //  3) For Int and Real: use 4 bytes to store the value;
   //     For Varchar: use 4 bytes to store the length of characters, then store the actual characters.
   //  !!! The same format is used for updateRecord(), the returned data of readRecord(), and readAttribute().
-  // For example, refer to the Q8 of Project 1 wiki page.
+  // For example, refer to the Q6 of Project 1 Environment document.
   RC insertRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, RID &rid);
 
   RC readRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, void *data);
@@ -132,6 +170,26 @@ protected:
 
 private:
   static RecordBasedFileManager *_rbf_manager;
+  static PagedFileManager *_pf_manager;
+
+  // Private helper methods
+
+  void newRecordBasedPage(void * page);
+
+  SlotDirectoryHeader getSlotDirectoryHeader(void * page);
+  void setSlotDirectoryHeader(void * page, SlotDirectoryHeader slotHeader);
+
+  SlotDirectoryRecordEntry getSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber);
+  void setSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber, SlotDirectoryRecordEntry recordEntry);
+
+  unsigned getPageFreeSpaceSize(void * page);
+  unsigned getRecordSize(const vector<Attribute> &recordDescriptor, const void *data);
+
+  int getNullIndicatorSize(int fieldCount);
+  bool fieldIsNull(char *nullIndicator, int i);
+
+  void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
+  void getRecordAtOffset(void *record, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
 };
 
 #endif
