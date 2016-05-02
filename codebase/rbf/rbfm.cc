@@ -462,6 +462,58 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
         data_offset += fieldSize;
     }
 }
+
+RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, 
+                 const RID &rid, const string &attributeName, void *data)
+{
+    //read page given by filehandle
+    //look at readRecord for example on parsing the data!
+    //read in record size;
+    //read in null indicator
+    //check if attr is null;
+    //
+
+    for(int i = 0; i<recordDescriptor.size(), i++){
+        if(recordDescriptor[i].name == attributeName){
+            type = recordDescriptor[i].type;
+            index = i;
+        }
+    }
+
+    SlotDirectoryRecordEntry sdre = getSlotDirectoryRecordEntry(page, rid.pageNum);
+
+    offset_to_record = sdre.offset;
+
+    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+
+    offset_to_null_indicator = offset_to_record + sizeof(RecordLength);
+
+    offset_to_field_dir = offset_to_null_indicator + nullIndicatorSize;
+
+    //I'm assuming offset is relative to start of record :) 
+    ColumnOffset startPointer; //what if index == 0?
+    memcpy(&startPointer, offset_to_field_dir + (index-1) * sizeof(ColumnOffset), sizeof(ColumnOffset));
+    ColumnOffset endPointer;
+    memcpy(&endPointer, offset_to_field_dir + index * sizeof(ColumnOffset), sizeof(ColumnOffset));
+
+    // rec_offset keeps track of start of column, so end-start = total size
+    uint32_t fieldSize = endPointer - startPointer;
+
+    unsigned data_offset = 0;
+    // Special case for varchar, we must give data the size of varchar first
+    if (recordDescriptor[i].type == TypeVarChar)
+    {
+        memcpy((char*) data, &fieldSize, VARCHAR_LENGTH_SIZE);
+        data_offset = VARCHAR_LENGTH_SIZE;
+    }
+    // Next we copy bytes equal to the size of the field and increase our offsets
+    memcpy((char*) data + data_offset, start + startPointer, fieldSize);
+    //read page given by filehandle
+    //getSlotE
+
+
+}
+
 RC RecordBasedFileManager::scan(FileHandle &fileHandle,
                                 const vector<Attribute> &recordDescriptor,
                                 const string &conditionAttribute,
