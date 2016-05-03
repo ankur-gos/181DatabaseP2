@@ -538,4 +538,20 @@ bool compareByOffset(const SlotDirectoryRecordEntry &a, const SlotDirectoryRecor
 
 RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid){
     //delete record, insert record, if new rid != oldrid then update oldrid with forwarding.
+    
+    RID * new_rid = (RID*) malloc(sizeof(RID));
+
+    _rbf_manager->deleteRecord(fileHandle, recordDescriptor, rid);
+    _rbf_manager->insertRecord(fileHandle, recordDescriptor, data, *new_rid);
+
+    if(rid.pageNum != new_rid->pageNum || rid.slotNum != new_rid->pageNum){
+        void * page = malloc(sizeof(PAGE_SIZE));
+        fileHandle.readPage(rid.pageNum, page);
+        SlotDirectoryRecordEntry entry = getSlotDirectoryRecordEntry(page, rid.slotNum);
+        //entry should be 0-ed out here
+        entry.length = new_rid->pageNum;
+        entry.offset = 0 - new_rid->slotNum;
+
+        setSlotDirectoryRecordEntry(page, rid.slotNum, entry);
+    }
 }
