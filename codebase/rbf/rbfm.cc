@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 #include "rbfm.h"
 
@@ -478,43 +479,63 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     //set free space offset -= deletedRecord length
 
     void * page = malloc(PAGE_SIZE);
-    fileHandle->readPage(rid->pageNum, page);
+    fileHandle.readPage(rid.pageNum, page);
     //get header and slot table entry for our record
     SlotDirectoryHeader header = _rbf_manager->getSlotDirectoryHeader(page); 
-    SlotDirectoryEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, rid->slotNum);
+    SlotDirectoryRecordEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, rid.slotNum);
     //remove the entry for our record
-    SlotDirectoryEntry *empty_entry = (SlotDirectoryEntry*) malloc(sizeof(SlotDirectoryEntry));
-    setSlotDirectoryRecordEntry(page, rid->slotNum, *empty_entry);
+    SlotDirectoryRecordEntry *empty_entry = (SlotDirectoryRecordEntry*) malloc(sizeof(SlotDirectoryRecordEntry));
+    setSlotDirectoryRecordEntry(page, rid.slotNum, *empty_entry);
+
+    int offset = entry.offset;
+    int length = entry.length;//confirm this is the records size on page including nullbytes, etc.
 
     //update the header 
     header.freeSpaceOffset -= length;
     header.recordEntriesNumber -= 1;
     setSlotDirectoryHeader(page, header);
 
-    offset = entry.offset;
-    length = entry.length;//confirm this is the records size on page
-
-    vector<SlotDirectoryEntry> records_to_move;
+    vector<SlotDirectoryRecordEntry> records_to_move;
     for(int i = 0; i < header.recordEntriesNumber; i++){
         //confirm recordNumberEntries is really the number of records on page.
         //check how we are supposed to find iterate over the slot table -
         // if the slot table isn't tighly packed how do we know we know we got every
         // entry? Just look until we get ==recordEntriesNumber?
-        SlotDirectoryEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
+        SlotDirectoryRecordEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
         if(entry.offset < offset){
             //deletion will affect this record.
-            SlotDirectoryEntry new_entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
-            new_entry.offset += length; //our entry now points to its new position
+
+            //update the slot entry with new offset. 
+            //we can't move the record itself yet b/c we need to move them in a specific
+            //order to avoid accidentally overwritting any records
+            SlotDirectoryRecordEntry new_entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
+            new_entry.offset += length; 
             _rbf_manager->setSlotDirectoryRecordEntry(page, i, new_entry);
-            //append to recordstomove
+
+
+            records_to_move.insert(records_to_move.end(), entry);
+            //free new_entry;
         }
     }
     //sort records to move based on offset. greatest offset is closest to entry to delete 
-    // & there fore should move first
-    //get record at entry.offset, set record at entry.offset + length
+    // & there fore should move first. This should sort with greatest offset first. 
+    std::sort(records_to_move.begin(), records_to_move.end(), compareByOffset);
 
-    //write page
+    //get record at entry.offset, set record at entry.offset + length
+    for(int i =0; i<records_to_move.size(); i++){
+        SlotDirectoryRecordEntry record_to_move = records_to_move[0];
+        //should these be chars???
+        memmove((char*)page+record_to_move.offset, (char*)page+record_to_move.offset+length, record_to_move.length);
+    }
+
+    fileHandle.writePage(rid.pageNum, page);
 }
+// http://stackoverflow.com/questions/4892680/sorting-a-vector-of-structs
+bool compareByOffset(const SlotDirectoryRecordEntry &a, const SlotDirectoryRecordEntry &b)
+{
+    return a.offset > b.offset;
+}
+
 RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid){
     //delete record, insert record, if new rid != oldrid then update oldrid with forwarding.
 }
