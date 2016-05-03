@@ -466,3 +466,7 @@ RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescript
 {
     //in progress on the 'implement-scan' branch. Let me know if this is blocking anyone - CJ
 }
+RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid)
+{
+    //in progress on 'implement-delete-update' branch. Let me know if this is blocking anyone - CJ
+}
