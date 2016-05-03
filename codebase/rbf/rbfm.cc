@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 #include "rbfm.h"
 
@@ -462,14 +463,95 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
         data_offset += fieldSize;
     }
 }
-RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data)
+RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data)
 {
     //in progress on the 'implement-scan' branch. Let me know if this is blocking anyone - CJ
 }
 RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid)
 {
-    //in progress on 'implement-delete-update' branch. Let me know if this is blocking anyone - CJ
+    //get offset
+    //determine record size
+    //get all records <offset
+    //move last record forward by deletedRecord length
+    //repeat for all records
+    //delete slot entry
+    //set free space -= deletedRecord length
+    //set free space offset -= deletedRecord length
+
+    void * page = malloc(PAGE_SIZE);
+    fileHandle.readPage(rid.pageNum, page);
+    //get header and slot table entry for our record
+    SlotDirectoryHeader header = _rbf_manager->getSlotDirectoryHeader(page); 
+    SlotDirectoryRecordEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, rid.slotNum);
+    //remove the entry for our record
+    SlotDirectoryRecordEntry *empty_entry = (SlotDirectoryRecordEntry*) malloc(sizeof(SlotDirectoryRecordEntry));
+    setSlotDirectoryRecordEntry(page, rid.slotNum, *empty_entry);
+
+    int offset = entry.offset;
+    int length = entry.length;//confirm this is the records size on page including nullbytes, etc.
+
+    //update the header 
+    header.freeSpaceOffset -= length;
+    header.recordEntriesNumber -= 1;
+    setSlotDirectoryHeader(page, header);
+
+    vector<SlotDirectoryRecordEntry> records_to_move;
+    for(int i = 0; i < header.recordEntriesNumber; i++){
+        //confirm recordNumberEntries is really the number of records on page.
+        //check how we are supposed to find iterate over the slot table -
+        // if the slot table isn't tighly packed how do we know we know we got every
+        // entry? Just look until we get ==recordEntriesNumber?
+        SlotDirectoryRecordEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
+        if(entry.offset < offset){
+            //deletion will affect this record.
+
+            //update the slot entry with new offset. 
+            //we can't move the record itself yet b/c we need to move them in a specific
+            //order to avoid accidentally overwritting any records
+            SlotDirectoryRecordEntry new_entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
+            new_entry.offset += length; 
+            _rbf_manager->setSlotDirectoryRecordEntry(page, i, new_entry);
+
+
+            records_to_move.insert(records_to_move.end(), entry);
+            //free new_entry;
+        }
+    }
+    //sort records to move based on offset. greatest offset is closest to entry to delete 
+    // & there fore should move first. This should sort with greatest offset first. 
+    std::sort(records_to_move.begin(), records_to_move.end(), compareByOffset);
+
+    //get record at entry.offset, set record at entry.offset + length
+    for(int i =0; i<records_to_move.size(); i++){
+        SlotDirectoryRecordEntry record_to_move = records_to_move[0];
+        //should these be chars???
+        memmove((char*)page+record_to_move.offset, (char*)page+record_to_move.offset+length, record_to_move.length);
+    }
+
+    fileHandle.writePage(rid.pageNum, page);
 }
+// http://stackoverflow.com/questions/4892680/sorting-a-vector-of-structs
+bool compareByOffset(const SlotDirectoryRecordEntry &a, const SlotDirectoryRecordEntry &b)
+{
+    return a.offset > b.offset;
+}
+
 RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid){
-    //in progress on 'implement-delete-update' branch. Let me know if this is blocking anyone - CJ
+    //delete record, insert record, if new rid != oldrid then update oldrid with forwarding.
+    
+    RID * new_rid = (RID*) malloc(sizeof(RID));
+
+    _rbf_manager->deleteRecord(fileHandle, recordDescriptor, rid);
+    _rbf_manager->insertRecord(fileHandle, recordDescriptor, data, *new_rid);
+
+    if(rid.pageNum != new_rid->pageNum || rid.slotNum != new_rid->pageNum){
+        void * page = malloc(sizeof(PAGE_SIZE));
+        fileHandle.readPage(rid.pageNum, page);
+        SlotDirectoryRecordEntry entry = getSlotDirectoryRecordEntry(page, rid.slotNum);
+        //entry should be 0-ed out here
+        entry.length = new_rid->pageNum;
+        entry.offset = 0 - new_rid->slotNum;
+
+        setSlotDirectoryRecordEntry(page, rid.slotNum, entry);
+    }
 }

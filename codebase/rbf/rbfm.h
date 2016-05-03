@@ -76,6 +76,7 @@ typedef uint16_t ColumnOffset;
 
 typedef uint16_t RecordLength;
 
+bool compareByOffset(const SlotDirectoryRecordEntry &a, const SlotDirectoryRecordEntry &b);
 
 /********************************************************************************
 The scan iterator is NOT required to be implemented for the part 1 of the project 
