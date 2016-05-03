@@ -479,13 +479,21 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
 
     void * page = malloc(PAGE_SIZE);
     fileHandle->readPage(rid->pageNum, page);
+    //get header and slot table entry for our record
     SlotDirectoryHeader header = _rbf_manager->getSlotDirectoryHeader(page); 
     SlotDirectoryEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, rid->slotNum);
+    //remove the entry for our record
     SlotDirectoryEntry *empty_entry = (SlotDirectoryEntry*) malloc(sizeof(SlotDirectoryEntry));
-    setSlotDirectoryRecordEntry(page, )
+    setSlotDirectoryRecordEntry(page, rid->slotNum, *empty_entry);
+
+    //update the header 
+    header.freeSpaceOffset -= length;
+    header.recordEntriesNumber -= 1;
+    setSlotDirectoryHeader(page, header);
 
     offset = entry.offset;
     length = entry.length;//confirm this is the records size on page
+
     vector<SlotDirectoryEntry> records_to_move;
     for(int i = 0; i < header.recordEntriesNumber; i++){
         //confirm recordNumberEntries is really the number of records on page.
@@ -504,6 +512,9 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     //sort records to move based on offset. greatest offset is closest to entry to delete 
     // & there fore should move first
     //get record at entry.offset, set record at entry.offset + length
-    header.
+
     //write page
+}
+RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const void *data, const RID &rid){
+    //delete record, insert record, if new rid != oldrid then update oldrid with forwarding.
 }
