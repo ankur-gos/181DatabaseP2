@@ -462,7 +462,48 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
         data_offset += fieldSize;
     }
 }
-RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data)
+RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data)
 {
     //in progress on the 'implement-scan' branch. Let me know if this is blocking anyone - CJ
+}
+RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid)
+{
+    //get offset
+    //determine record size
+    //get all records <offset
+    //move last record forward by deletedRecord length
+    //repeat for all records
+    //delete slot entry
+    //set free space -= deletedRecord length
+    //set free space offset -= deletedRecord length
+
+    void * page = malloc(PAGE_SIZE);
+    fileHandle->readPage(rid->pageNum, page);
+    SlotDirectoryHeader header = _rbf_manager->getSlotDirectoryHeader(page); 
+    SlotDirectoryEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, rid->slotNum);
+    SlotDirectoryEntry *empty_entry = (SlotDirectoryEntry*) malloc(sizeof(SlotDirectoryEntry));
+    setSlotDirectoryRecordEntry(page, )
+
+    offset = entry.offset;
+    length = entry.length;//confirm this is the records size on page
+    vector<SlotDirectoryEntry> records_to_move;
+    for(int i = 0; i < header.recordEntriesNumber; i++){
+        //confirm recordNumberEntries is really the number of records on page.
+        //check how we are supposed to find iterate over the slot table -
+        // if the slot table isn't tighly packed how do we know we know we got every
+        // entry? Just look until we get ==recordEntriesNumber?
+        SlotDirectoryEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
+        if(entry.offset < offset){
+            //deletion will affect this record.
+            SlotDirectoryEntry new_entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
+            new_entry.offset += length; //our entry now points to its new position
+            _rbf_manager->setSlotDirectoryRecordEntry(page, i, new_entry);
+            //append to recordstomove
+        }
+    }
+    //sort records to move based on offset. greatest offset is closest to entry to delete 
+    // & there fore should move first
+    //get record at entry.offset, set record at entry.offset + length
+    header.
+    //write page
 }
