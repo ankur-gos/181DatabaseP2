@@ -539,7 +539,7 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle,
                                 {
                                     //how do we determine which rids to read from? We should figure it out at this level.
                                     //also need to filter initialize with filter information
-                                    rbfm_ScanIterator = RBFM_ScanIterator(fileHandle, &recordDescriptor, conditionAttribute,
+                                    rbfm_ScanIterator = RBFM_ScanIterator(fileHandle, recordDescriptor, conditionAttribute,
                                                                                 compOp, value, attributeNames, _rbf_manager);
                                     return 0;
 }

@@ -101,14 +101,19 @@ public:
                     const CompOp compOp,                  // comparision type such as "<" and "="
                     const void *value,                    // used in the comparison
                     const vector<string> &attributeNames,
-                    RecordBasedFileManager* _rbfm) {
-    fileHandle=fileHandle;
-    recordDescriptor=recordDescriptor;
-    conditionAttribute=conditionAttribute;
-    compOp=compOp;
-    value=value;
-    attributeNames=attributeNames;
-    _rbfm = _rbfm;
+                    RecordBasedFileManager* _rbfm) 
+                    : recordDescriptor(recordDescriptor),
+                      fileHandle(fileHandle),
+                      conditionAttribute(conditionAttribute),
+                      attributeNames(attributeNames),
+                      compOp(compOp) {
+    //fileHandle=fileHandle;
+    //this->recordDescriptor=recordDescriptor;
+    //conditionAttribute=conditionAttribute;
+    //compOp=compOp;
+    this->value=value;
+    //attributeNames=attributeNames;
+    this->_rbfm = _rbfm;
 
     
     currentPage=0;
@@ -172,7 +177,7 @@ public:
     }
 
     int conditional_index;
-    for(int i ==0; i< recordDescriptor.size(); i++){
+    for(int i = 0; i< recordDescriptor.size(); i++){
       if(recordDescriptor[i].name == conditionAttribute){
         conditional_index = i;
         break;
