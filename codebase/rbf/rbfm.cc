@@ -496,25 +496,36 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     setSlotDirectoryHeader(page, header);
 
     vector<SlotDirectoryRecordEntry> records_to_move;
-    for(int i = 0; i < header.recordEntriesNumber; i++){
+    int recordsFound = 0;
+    for(int index = 0; recordsFound < header.recordEntriesNumber; index++){
         //confirm recordNumberEntries is really the number of records on page.
-        //check how we are supposed to find iterate over the slot table -
-        // if the slot table isn't tighly packed how do we know we know we got every
-        // entry? Just look until we get ==recordEntriesNumber?
-        SlotDirectoryRecordEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
-        if(entry.offset < offset){
-            //deletion will affect this record.
+        SlotDirectoryRecordEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, index);
+        if(entry.offset == 0 && entry.length == 0){
+            continue; //record was deleted, should not be counted in recordsFound
+        }
+
+        recordsFound ++;
+
+        if(entry.offset < offset && entry.length > 0){
+            //deletion will affect this record. negative length means this RID is forwarded.
 
             //update the slot entry with new offset. 
             //we can't move the record itself yet b/c we need to move them in a specific
             //order to avoid accidentally overwritting any records
-            SlotDirectoryRecordEntry new_entry = _rbf_manager->getSlotDirectoryRecordEntry(page, i);
+            SlotDirectoryRecordEntry new_entry = _rbf_manager->getSlotDirectoryRecordEntry(page, index);
             new_entry.offset += length; 
-            _rbf_manager->setSlotDirectoryRecordEntry(page, i, new_entry);
+            _rbf_manager->setSlotDirectoryRecordEntry(page, index, new_entry);
 
 
             records_to_move.insert(records_to_move.end(), entry);
             //free new_entry;
+        }else{
+            //The record we want is not on this page but we can determine its new RID from the
+            // slot table entry
+            RID *forwarded_rid = malloc(sizeof(RID));
+            forwarded_rid->pageNum = entry.offset;
+            forwarded_rid->slotNum = 0 - entry.length;
+            return _rbf_manager->deleteRecord(fileHandle, recordDescriptor, *forwarded_rid);
         }
     }
     //sort records to move based on offset. greatest offset is closest to entry to delete 
