@@ -143,7 +143,21 @@ public:
     //read all fields specified
     //set null bytes
     //if needed increment page, reset page data
+    if(numberEntriesOnPage == entriesReadOnPage){
+      currentPage++;
+      if(currentPage>fileHandle.getNumberOfPages()){
+        return -1; //EOF
+      }
+      void* page = malloc(PAGE_SIZE);
+      fileHandle.readPage(currentPage, page);
+      SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
+      free(page);
+      numberEntriesOnPage=header.recordEntriesNumber;//what if its 0
+      nextSlotNum=0;
+      entriesReadOnPage=0;
+    }
     while(true){
+      //find non tombstoned rid
       rid.slotNum = nextSlotNum;
       rid.pageNum = currentPage;
 
@@ -164,17 +178,21 @@ public:
         break;
       }
     }
-    void * data = malloc(PAGE_SIZE);
+    void* temp_data = malloc(PAGE_SIZE);
+    _rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data);
+    //parse Data, compare to value. If failure, do a recursive call :)
+
     int nullSize = getNullIndicatorSize(attributeNames.size());
     void * nullBytes = malloc(nullSize);
 
     for(int i = 0; i<attributeNames.size(); i++){
       void* temp_data = malloc(PAGE_SIZE);
-      _rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data);
+      _rbfm->readAttribute(fileHandle, recordDescriptor, rid, attributeNames[i], temp_data);
       //check if null
+      //edit nullBytes if possible
       //discard null byte, 
-      //get size,
-      //copy to builder
+      //get size of field
+      //copy into data
       free(temp_data);
     }
     //get attribute pointed at by conditionAttribute
@@ -183,17 +201,7 @@ public:
     //for nulls: readAttr will indicate null
     //for all nulls, generate null bytes
     //add null bytes + rest of records IN PROPER ORDER 
-    //point data to new data.
-    if(numberEntriesOnPage == entriesReadOnPage){
-      currentPage++;
-      void* page = malloc(PAGE_SIZE);
-      fileHandle.readPage(currentPage, page);
-      SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
-      free(page);
-      numberEntriesOnPage=header.recordEntriesNumber;
-      nextSlotNum=0;
-      entriesReadOnPage=0;
-    }
+    //point data to new data
     return 0;
   };
   RC close() { return -1; };
