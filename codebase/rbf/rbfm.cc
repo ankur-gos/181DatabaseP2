@@ -458,16 +458,26 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
 
     for (unsigned i = 0; i < recordDescriptor.size(); i++)
     {
+        //this attrs corresponding index in attr names. 
+        int mapped_index = -1;
+
         if(attr_filter){
             for(int j = 0; j < attributeNames.size(); j++){
+                if(recordDescriptor[i].name == attributeNames[j]){
+                    mapped_index = j;
+                }
                 //if this attr not in attr names, continue loop
                 //need to handle case were condAttr not in attr names
                 //this should 
             }
+            if(mapped_index == -1) 
+                continue;//this attr is not in attrNAmes & should not be projected
         
             if (fieldIsNull(recordNullIndicator, i)){
-                int indicatorIndex = (i+1) / CHAR_BIT;
-                int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+                //we don't want to set i null, we want to set corresponding index from
+                // attrNames. 
+                int indicatorIndex = (mapped_index+1) / CHAR_BIT;
+                int indicatorMask  = 1 << (CHAR_BIT - 1 - (mapped_index % CHAR_BIT));
                 nullIndicator[indicatorIndex] |= indicatorMask;
                 continue;
             }
@@ -509,7 +519,10 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
         rec_offset += fieldSize;
         data_offset += fieldSize;
     }
-    //rewrite null bytes iff attr
+    //write null bytes iff attr. Done after we have found all fields and checked if they are null
+    if(attr_filter){
+        memcpy((char*)data, nullIndicator, nullIndicatorSize);
+    }
 }
 
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, 
