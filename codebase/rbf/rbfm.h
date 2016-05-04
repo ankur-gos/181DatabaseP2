@@ -94,7 +94,12 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 
 class RBFM_ScanIterator {
 public:
-  RBFM_ScanIterator() {
+  RBFM_ScanIterator(FileHandle &fileHandle,
+                    const vector<Attribute> &recordDescriptor,
+                    const string &conditionAttribute,
+                    const CompOp compOp,                  // comparision type such as "<" and "="
+                    const void *value,                    // used in the comparison
+                    const vector<string> &attributeNames) {
   };
   ~RBFM_ScanIterator() {
   };

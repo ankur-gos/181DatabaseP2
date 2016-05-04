@@ -463,51 +463,55 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
     }
 }
 
-RC readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, 
+RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, 
                  const RID &rid, const string &attributeName, void *data)
 {
     //read page given by filehandle
     //look at readRecord for example on parsing the data!
     //read in record size;
     //read in null indicator
-    //check if attr is null;
+    //check if attr is null; what do we do if it is null?
     //
+    int index;
+    AttrType type;
+    void * page = malloc(PAGE_SIZE);
 
-    for(int i = 0; i<recordDescriptor.size(), i++){
+    for(int i = 0; i<recordDescriptor.size(); i++){
         if(recordDescriptor[i].name == attributeName){
             type = recordDescriptor[i].type;
             index = i;
         }
     }
 
-    SlotDirectoryRecordEntry sdre = getSlotDirectoryRecordEntry(page, rid.pageNum);
+    SlotDirectoryRecordEntry sdre = _rbf_manager->getSlotDirectoryRecordEntry(page, rid.pageNum);
 
-    offset_to_record = sdre.offset;
+    int offset_to_record = sdre.offset;
 
-    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+    int nullIndicatorSize = _rbf_manager->getNullIndicatorSize(recordDescriptor.size());
 
-    offset_to_null_indicator = offset_to_record + sizeof(RecordLength);
+    int offset_to_null_indicator = offset_to_record + sizeof(RecordLength);
 
-    offset_to_field_dir = offset_to_null_indicator + nullIndicatorSize;
+    int offset_to_field_dir = offset_to_null_indicator + nullIndicatorSize;
 
     //I'm assuming offset is relative to start of record :) 
+    //The offset definitely does point to the end of the field
     ColumnOffset startPointer; //what if index == 0?
-    memcpy(&startPointer, offset_to_field_dir + (index-1) * sizeof(ColumnOffset), sizeof(ColumnOffset));
+    memcpy(&startPointer, (char*)data + offset_to_field_dir + (index-1) * sizeof(ColumnOffset), sizeof(ColumnOffset));
     ColumnOffset endPointer;
-    memcpy(&endPointer, offset_to_field_dir + index * sizeof(ColumnOffset), sizeof(ColumnOffset));
+    memcpy(&endPointer, (char*)data + offset_to_field_dir + index * sizeof(ColumnOffset), sizeof(ColumnOffset));
 
     // rec_offset keeps track of start of column, so end-start = total size
     uint32_t fieldSize = endPointer - startPointer;
 
     unsigned data_offset = 0;
     // Special case for varchar, we must give data the size of varchar first
-    if (recordDescriptor[i].type == TypeVarChar)
+    if (recordDescriptor[index].type == TypeVarChar)
     {
         memcpy((char*) data, &fieldSize, VARCHAR_LENGTH_SIZE);
         data_offset = VARCHAR_LENGTH_SIZE;
     }
-    // Next we copy bytes equal to the size of the field and increase our offsets
-    memcpy((char*) data + data_offset, start + startPointer, fieldSize);
+    //
+    memcpy((char*) data, (char*)data + startPointer, fieldSize);
     //read page given by filehandle
     //getSlotE
 
@@ -524,8 +528,8 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle,
                                 {
                                     //how do we determine which rids to read from? We should figure it out at this level.
                                     //also need to filter initialize with filter information
-                                    RBFM_ScanIterator rmsi = RBFM_ScanIterator(fileHandle, recordDescriptor, conditionAttribute,
+                                    rbfm_ScanIterator = RBFM_ScanIterator(fileHandle, recordDescriptor, conditionAttribute,
                                                                                 compOp, value, attributeNames);
-                                    return rmsi;
+                                    return 0;
 }
 
