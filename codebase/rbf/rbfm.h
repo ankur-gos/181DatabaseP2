@@ -23,6 +23,8 @@
 
 using namespace std;
 
+
+
 // Record ID
 typedef struct
 {
@@ -53,6 +55,12 @@ typedef enum
     NE_OP,      // !=
     NO_OP       // no condition
 } CompOp;
+
+static vector<int> DEFAULT_VECTOR;
+CompOp DEFAULT_OP = EQ_OP;
+static string DEFAULT_ATTR = '';
+static DEFAULT_VALUE = 0;
+
 
 // Slot directory headers for page organization
 // See chapter 9.6.2 of the cow book or lecture 3 slide 16 for more information

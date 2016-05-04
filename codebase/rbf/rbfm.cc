@@ -402,34 +402,51 @@ void RecordBasedFileManager::setRecordAtOffset(void *page, unsigned offset, cons
 
 // Support header size and null indicator. If size is less than recordDescriptor size, then trailing records are null
 // Memset null indicator as 1?
-void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, void *data)
+void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, void *data,
+    const string &conditionAttribute=DEFAULT_ATTR, 
+    const CompOp compOp=DEFAULT_OP, 
+    const void *value=DEFAULT_VALUE, 
+    const vector<string> &attributeNames=DEFAULT_VECTOR)
 {
+    //we are filtering based on conditionattr
+    bool cond_filter = (conditionAttribute==DEFAULT_ATTR) ? false : true;
+    //we are fitering only attrsin attrNames
+    bool attr_filter = (attributeNames==DEFAULT_VECTOR) ? false : true;
+
     // Pointer to start of record
     char *start = (char*) page + offset;
 
     // Allocate space for null indicator. The returned null indicator may be larger than
     // the null indicator in the table has had fields added to it
-    int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
-    char nullIndicator[nullIndicatorSize];
-    memset(nullIndicator, 0, nullIndicatorSize);
-
     // Get number of columns and size of the null indicator for this record
     RecordLength len = 0;
     memcpy (&len, start, sizeof(RecordLength));
     int recordNullIndicatorSize = getNullIndicatorSize(len);
-
     // Read in the existing null indicator
-    memcpy (nullIndicator, start + sizeof(RecordLength), recordNullIndicatorSize);
+    char recordNullIndicator[nullIndicatorSize];
+    memcpy (recordNullIndicator, start + sizeof(RecordLength), recordNullIndicatorSize);
 
-    // If this new recordDescriptor has had fields added to it, we set all of the new fields to null
-    for (unsigned i = len; i < recordDescriptor.size(); i++)
-    {
-        int indicatorIndex = (i+1) / CHAR_BIT;
-        int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
-        nullIndicator[indicatorIndex] |= indicatorMask;
+    if(!attr_filter){
+        int nullIndicatorSize = getNullIndicatorSize(recordDescriptor.size());
+        char nullIndicator[nullIndicatorSize];
+        memset(nullIndicator, 0, nullIndicatorSize);
+        memcpy (nullIndicator, start + sizeof(RecordLength), recordNullIndicatorSize);
+
+        // If this new recordDescriptor has had fields added to it, we set all of the new fields to null
+        for (unsigned i = len; i < recordDescriptor.size(); i++)
+        {
+            int indicatorIndex = (i+1) / CHAR_BIT;
+            int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+            nullIndicator[indicatorIndex] |= indicatorMask;
+        }
+        // Write out null indicator
+        memcpy(data, nullIndicator, nullIndicatorSize);
+    }else{
+        int nullIndicatorSize = getNullIndicatorSize(attributeNames.size());
+        char nullIndicator[nullIndicatorSize];
+        memset(nullIndicator, 0, nullIndicatorSize);
     }
-    // Write out null indicator
-    memcpy(data, nullIndicator, nullIndicatorSize);
+
 
     // Initialize some offsets
     // rec_offset: points to data in the record. We move this forward as we read data from our record
@@ -438,12 +455,31 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
     unsigned data_offset = nullIndicatorSize;
     // directory_base: points to the start of our directory of indices
     char *directory_base = start + sizeof(RecordLength) + recordNullIndicatorSize;
-    
+
     for (unsigned i = 0; i < recordDescriptor.size(); i++)
     {
-        if (fieldIsNull(nullIndicator, i))
-            continue;
+        if(attr_filter){
+            for(int j = 0; j < attributeNames.size(); j++){
+                //if this attr not in attr names, continue loop
+                //need to handle case were condAttr not in attr names
+                //this should 
+            }
         
+            if (fieldIsNull(recordNullIndicator, i)){
+                int indicatorIndex = (i+1) / CHAR_BIT;
+                int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+                nullIndicator[indicatorIndex] |= indicatorMask;
+                continue;
+            }
+        }else{
+            if (fieldIsNull(recordNullIndicator, i)){
+                continue;
+            }
+        }
+            
+        
+        //if record descriptor name == conditional but doesn't meet criteria, break
+
         // Grab pointer to end of this column
         ColumnOffset endPointer;
         memcpy(&endPointer, directory_base + i * sizeof(ColumnOffset), sizeof(ColumnOffset));
@@ -454,14 +490,26 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
         // Special case for varchar, we must give data the size of varchar first
         if (recordDescriptor[i].type == TypeVarChar)
         {
+            //copies field size into data
             memcpy((char*) data + data_offset, &fieldSize, VARCHAR_LENGTH_SIZE);
             data_offset += VARCHAR_LENGTH_SIZE;
+        }
+
+        void * field_data = malloc(sizeof(fieldSize));
+        memcpy(field_data, start+rec_offset, fieldSize);
+        //see of this attr is the conditional attr
+        if(cond_filter && recordDescriptor[i].name == conditionAttribute){
+            if(!(*field_data compOp *value)){ // both of these are void pointers.. prob need to cast
+                //set data == null, return
+                return;
+            }
         }
         // Next we copy bytes equal to the size of the field and increase our offsets
         memcpy((char*) data + data_offset, start + rec_offset, fieldSize);
         rec_offset += fieldSize;
         data_offset += fieldSize;
     }
+    //rewrite null bytes iff attr
 }
 
 RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, 
