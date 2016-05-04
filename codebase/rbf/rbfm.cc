@@ -522,7 +522,7 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
         }else{
             //The record we want is not on this page but we can determine its new RID from the
             // slot table entry
-            RID *forwarded_rid = malloc(sizeof(RID));
+            RID *forwarded_rid = (RID*)malloc(sizeof(RID));
             forwarded_rid->pageNum = entry.offset;
             forwarded_rid->slotNum = 0 - entry.length;
             return _rbf_manager->deleteRecord(fileHandle, recordDescriptor, *forwarded_rid);
@@ -540,6 +540,7 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     }
 
     fileHandle.writePage(rid.pageNum, page);
+    return 0;
 }
 // http://stackoverflow.com/questions/4892680/sorting-a-vector-of-structs
 bool compareByOffset(const SlotDirectoryRecordEntry &a, const SlotDirectoryRecordEntry &b)
@@ -565,4 +566,5 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
 
         setSlotDirectoryRecordEntry(page, rid.slotNum, entry);
     }
+    return 0;
 }
