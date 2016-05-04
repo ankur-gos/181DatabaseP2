@@ -76,6 +76,7 @@ typedef uint16_t ColumnOffset;
 
 typedef uint16_t RecordLength;
 
+bool compareByOffset(const SlotDirectoryRecordEntry &a, const SlotDirectoryRecordEntry &b);
 
 /********************************************************************************
 The scan iterator is NOT required to be implemented for the part 1 of the project 
@@ -91,7 +92,7 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 //    process the data;
 //  }
 //  rbfmScanIterator.close();
-
+class RecordBasedFileManager; // we refer to this class in RBFM iterator. Initialized below. 
 class RBFM_ScanIterator {
 public:
   RBFM_ScanIterator(FileHandle &fileHandle,
@@ -111,9 +112,9 @@ public:
   // a satisfying record needs to be fetched from the file.
   // "data" follows the same format as RecordBasedFileManager::insertRecord().
   RC getNextRecord(RID &rid, void *data) {
-    rbfmPointer->readRecord(*fh, *recordDescriptor, rid, data);
+    //build up results by readAttr vs rewrite getRecordAtOffset
+
     //get attribute pointed at by conditionAttribute
-    //maybe do a call to readAttribute before readRecord?
     //maybe no call to readRecord? Just sequential calls to readAttribute. 
     //we have to build up the data correctly though.
     //for nulls: readAttr will indicate null
