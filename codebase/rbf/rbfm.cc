@@ -152,6 +152,11 @@ RC RecordBasedFileManager::readRecord(FileHandle &fileHandle, const vector<Attri
     // Gets the slot directory record entry data
     SlotDirectoryRecordEntry recordEntry = getSlotDirectoryRecordEntry(pageData, rid.slotNum);
 
+    if(recordEntry.length <= 0 || recordEntry.offset <= 0){
+        //we should fix this to work with forwarding files
+        return -1;
+    }
+
     // Retrieve the actual entry data
     getRecordAtOffset(pageData, recordEntry.offset, recordDescriptor, data);
 
@@ -485,6 +490,8 @@ RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Att
     SlotDirectoryRecordEntry entry = _rbf_manager->getSlotDirectoryRecordEntry(page, rid.slotNum);
     //remove the entry for our record
     SlotDirectoryRecordEntry *empty_entry = (SlotDirectoryRecordEntry*) malloc(sizeof(SlotDirectoryRecordEntry));
+    empty_entry->offset=0;
+    empty_entry->length=0;
     setSlotDirectoryRecordEntry(page, rid.slotNum, *empty_entry);
 
     int offset = entry.offset;
