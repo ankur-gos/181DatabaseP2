@@ -467,10 +467,100 @@ void RecordBasedFileManager::getRecordAtOffset(void *page, unsigned offset, cons
         data_offset += fieldSize;
     }
 }
-RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid, const string &attributeName, void *data)
+
+RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, 
+                 const RID &rid, const string &attributeName, void *data)
 {
-    //in progress on the 'implement-scan' branch. Let me know if this is blocking anyone - CJ
+    //read page given by filehandle
+    //look at readRecord for example on parsing the data!
+    //read in record size;
+    //read in null indicator
+    //check if attr is null; what do we do if it is null?
+    //
+    int index;
+    AttrType type;
+    void * page = malloc(PAGE_SIZE);
+
+    for(int i = 0; i<recordDescriptor.size(); i++){
+        if(recordDescriptor[i].name == attributeName){
+            type = recordDescriptor[i].type;
+            index = i;
+        }
+    }
+
+    SlotDirectoryRecordEntry sdre = _rbf_manager->getSlotDirectoryRecordEntry(page, rid.pageNum);
+
+    int offset_to_record = sdre.offset;
+
+    int nullIndicatorSize = _rbf_manager->getNullIndicatorSize(recordDescriptor.size());
+
+    //read into data from offset_to_record of size nullIndicator size
+    char* nullBytes = (char*) malloc(nullIndicatorSize);
+    memcpy(nullBytes, (char*)page+offset_to_record, nullIndicatorSize);
+
+
+    // with only 1 record we only need 1 byte to represent nulls
+    int recordNullIndicatorSize = 1; 
+
+    //copy null byte into data if necessary
+    if(fieldIsNull(nullBytes, index)){
+        int indicatorIndex = (0+1) / CHAR_BIT;
+        int indicatorMask  = 1 << (CHAR_BIT - 1 - (0 % CHAR_BIT));
+        ((char*) data)[indicatorIndex] |= indicatorMask;
+        //if null, we don't have any other data to return so we can exit now
+        return 0;
+    }
+
+    int offset_to_null_indicator = offset_to_record + sizeof(RecordLength);
+
+    int offset_to_field_dir = offset_to_null_indicator + recordNullIndicatorSize;
+
+    //I'm assuming offset is relative to start of record :) 
+    //The offset definitely does point to the end of the field
+    ColumnOffset startPointer; //what if index == 0?
+    memcpy(&startPointer, (char*)page + offset_to_field_dir + (index-1) * sizeof(ColumnOffset), sizeof(ColumnOffset));
+    ColumnOffset endPointer;
+    memcpy(&endPointer, (char*)page + offset_to_field_dir + index * sizeof(ColumnOffset), sizeof(ColumnOffset));
+
+    // rec_offset keeps track of start of column, so end-start = total size
+    uint32_t fieldSize = endPointer - startPointer;
+
+    unsigned data_offset = recordNullIndicatorSize;
+    // Special case for varchar, we must give data the size of varchar first
+    if (recordDescriptor[index].type == TypeVarChar)
+    {
+        memcpy((char*) data+data_offset, &fieldSize, VARCHAR_LENGTH_SIZE);
+        data_offset += VARCHAR_LENGTH_SIZE;
+    }
+    //
+    memcpy((char*) data+data_offset, (char*)page + startPointer, fieldSize);
+    //read page given by filehandle
+    //getSlotE
+    return 0;
 }
+
+RC RecordBasedFileManager::scan(FileHandle &fileHandle,
+                                const vector<Attribute> &recordDescriptor,
+                                const string &conditionAttribute,
+                                const CompOp compOp,                  // comparision type such as "<" and "="
+                                const void *value,                    // used in the comparison
+                                const vector<string> &attributeNames, // a list of projected attributes
+                                RBFM_ScanIterator &rbfm_ScanIterator)
+                                {
+                                    //how do we determine which rids to read from? We should figure it out at this level.
+                                    //also need to filter initialize with filter information
+                                    rbfm_ScanIterator.fileHandle = fileHandle;
+                                    rbfm_ScanIterator.recordDescriptor = recordDescriptor;
+                                    rbfm_ScanIterator.conditionAttribute = conditionAttribute;
+                                    rbfm_ScanIterator.compOp = compOp;
+
+                                    rbfm_ScanIterator.value = value;
+
+                                    rbfm_ScanIterator.attributeNames = attributeNames;
+                                    rbfm_ScanIterator._rbfm = _rbf_manager;
+                                    return 0;
+}
+
 RC RecordBasedFileManager::deleteRecord(FileHandle &fileHandle, const vector<Attribute> &recordDescriptor, const RID &rid)
 {
     //get offset
@@ -573,18 +663,6 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
         setSlotDirectoryRecordEntry(page, rid.slotNum, entry);
     }
     return 0;
-}
-
-
-RC RecordBasedFileManager::scan(FileHandle &fileHandle,
-      const vector<Attribute> &recordDescriptor,
-      const string &conditionAttribute,
-      const CompOp compOp,                  // comparision type such as "<" and "="
-      const void *value,                    // used in the comparison
-      const vector<string> &attributeNames, // a list of projected attributes
-      RBFM_ScanIterator &rbfm_ScanIterator)
-{
-	return -1;
 }
 
 /* already defined in rbfm.h may need to redefine
