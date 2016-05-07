@@ -74,18 +74,18 @@ private:
 	//file handles and rids used for the catalog /////////////
   	bool catExists;		//catalog exists or not		//
 	FileHandle tablesFH;	//"Tables" filehandle		//	  
-	RID tTableRID;		//tables table RID		//
-	RID cTableIdRID;	//columns table-id rid		//
-	RID cTableNameRID;	//columns table-name rid	//
-	RID cFileNameRID;	//columns file-name rid 	//
+	RID* tTableRID;		//tables table RID		//
+	RID* cTableIdRID;	//columns table-id rid		//
+	RID* cTableNameRID;	//columns table-name rid	//
+	RID* cFileNameRID;	//columns file-name rid 	//
 								//
 	FileHandle colFH;	//"Columns" filehandle		//	  					  
-	RID tColRID;		//tables Columns RID    	//	  
-	RID cColIdRID;		//columns table-id rid 		//
-	RID cColNameRID;	//columns column-name rid	//
-	RID cColTypeRID;	//columns column-type rid	//
-	RID cColLengthRID;	//columns column-length rid	//
-	RID cColPosRID;		//columns column-position rid	//
+	RID* tColRID;		//tables Columns RID    	//	  
+	RID* cColIdRID;		//columns table-id rid 		//
+	RID* cColNameRID;	//columns column-name rid	//
+	RID* cColTypeRID;	//columns column-type rid	//
+	RID* cColLengthRID;	//columns column-length rid	//
+	RID* cColPosRID;	//columns column-position rid	//
 	// ///////////////////////////////////////////////////////
 };
 
