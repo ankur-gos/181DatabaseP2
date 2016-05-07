@@ -17,6 +17,7 @@ Attribute setAttr(string name, AttrType type, AttrLength length);
 
 RelationManager::RelationManager()
 {
+  	catExists = 0;
 }
 
 RelationManager::~RelationManager()
@@ -86,10 +87,7 @@ void catCDSetup(void* data, int tableID, string colName, int colType, int colLen
 */
 RC RelationManager::createCatalog()
 {
-	static bool exists = 0;
-
-
-	if (exists)
+	if (catExists)
 	{
 		return (1);	//already exists, can't create again
 	}
@@ -164,13 +162,22 @@ RC RelationManager::createCatalog()
 	
 
 	free(data);
-	exists = 1;
-	return -1;
+	catExists = 1;
+	return 0;
 }
 
 RC RelationManager::deleteCatalog()
 {
-    return -1;
+	RecordBasedFileManager* rbf = RecordBasedFileManager::instance();
+
+	catExists = 0;
+
+	rbf->close(tablesFH);
+	rbf->close(colFH);
+
+	
+
+	return -1;
 }
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
