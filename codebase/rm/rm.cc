@@ -236,6 +236,7 @@ RC RelationManager::deleteCatalog()
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
 {
+
     return -1;
 }
 
@@ -244,39 +245,182 @@ RC RelationManager::deleteTable(const string &tableName)
     return -1;
 }
 
+vector<Attribute> getCatalogTableAttributes(){
+    vector<Attribute> attrs;
+    Attribute a = {"table-id", TypeInt, 4};
+    Attribute b = {"table-name", TypeVarChar, 50};
+    Attribute c = {"file-name", TypeVarChar, 50};
+    attrs.push_back(a);
+    attrs.push_back(b);
+    attrs.push_back(c);
+    return attrs;
+}
+
+vector<Attribute> getCatalogColumnAttributes(){
+    vector<Attribute> attrs;
+    Attribute a = {"table-id", TypeInt, 4};
+    Attribute b = {"column-name", TypeVarChar, 50};
+    Attribute c = {"column-type", TypeInt, 4};
+    Attribute d = {"column-length", TypeInt, 4};
+    Attribute e = {"column-position", TypeInt, 4};
+    attrs.push_back(a);
+    attrs.push_back(b);
+    attrs.push_back(c);
+    attrs.push_back(d);
+    attrs.push_back(e);
+    return attrs;
+}
+
 RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &attrs)
 {
-    return -1;
+    if(this->createCatalog() == -1)
+        return -1;
+    // Scan using the lower level rbfm scanner. 
+    RBFM_ScanIterator iterator;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    if(rbfm->openFile("Tables", fh) == -1)
+        return -1;
+
+    vector<string> s;
+    s.push_back("table-id");
+    if(rbfm->scan(fh, getCatalogTableAttributes(), "table-name", EQ_OP, (const void *)tableName.c_str(), s, iterator) == -1)
+        return -1;
+    RID rid;
+    void *data = malloc(5);
+    if(iterator.getNextRecord(rid, data) == -1)
+        return -1;
+    int *id = (int *)((char *)data + 1);
+    if(rbfm->openFile("Columns", fh) == -1)
+        return -1;
+    vector<string> colAttributes;
+    colAttributes.push_back("column-name");
+    colAttributes.push_back("column-type");
+    colAttributes.push_back("column-length");
+    colAttributes.push_back("column-position");
+    if(rbfm->scan(fh, getCatalogColumnAttributes(), "table-name", EQ_OP, (void *)id, colAttributes, iterator) == -1)
+        return -1;
+    // 67 is number of bytes per row in catalog column
+    void *colData = malloc(67);
+    size_t offset = 1;
+    vector<Attribute> attributes;
+    while(iterator.getNextRecord(rid, colData) != RBFM_EOF){
+        int *nameLength = (int *)((char *)data + offset);
+        offset += 4;
+        char *str = (char *)malloc(*nameLength + 1);
+        memcpy((void *)str, (void *)((char *)data + offset), *nameLength);
+        *(str + *nameLength) = '\0';
+        string columnName = str;
+        free(str);
+        offset += *nameLength;
+        int *colType = (int *)((char *)data + offset);
+        offset += 4;
+        int *colLength = (int *)((char *)data + offset);
+        offset += 4;
+        // int *colPos = (int *)((char *)data + offset);
+        Attribute a = {columnName, (AttrType)*colType, *colLength};
+        attributes.push_back(a);
+    }
+    free(data);
+    free(colData);
+    attrs = attributes;
+    return 0;
 }
 
 RC RelationManager::insertTuple(const string &tableName, const void *data, RID &rid)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->insertRecord(fh, attrs, data, rid);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->deleteRecord(fh, attrs, rid);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::updateTuple(const string &tableName, const void *data, const RID &rid)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->updateRecord(fh, attrs, data, rid);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::readTuple(const string &tableName, const RID &rid, void *data)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->readRecord(fh, attrs, rid, data);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::printTuple(const vector<Attribute> &attrs, const void *data)
 {
-	return -1;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+	return rbfm->printRecord(attrs, data);
 }
 
 RC RelationManager::readAttribute(const string &tableName, const RID &rid, const string &attributeName, void *data)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->readAttribute(fh, attrs, rid, attributeName, data);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::scan(const string &tableName,
