@@ -575,3 +575,26 @@ RC RecordBasedFileManager::updateRecord(FileHandle &fileHandle, const vector<Att
     }
     return 0;
 }
+
+
+RC RecordBasedFileManager::scan(FileHandle &fileHandle,
+      const vector<Attribute> &recordDescriptor,
+      const string &conditionAttribute,
+      const CompOp compOp,                  // comparision type such as "<" and "="
+      const void *value,                    // used in the comparison
+      const vector<string> &attributeNames, // a list of projected attributes
+      RBFM_ScanIterator &rbfm_ScanIterator)
+{
+	return -1;
+}
+
+/* already defined in rbfm.h may need to redefine
+RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data) 
+{ 
+	return RBFM_EOF; 
+}
+
+RC RBFM_ScanIterator::close() 
+{ 
+	return -1; 
+} */

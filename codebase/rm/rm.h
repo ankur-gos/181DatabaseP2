@@ -73,6 +73,7 @@ private:
 
 	//file handles and rids used for the catalog /////////////
   	bool catExists;		//catalog exists or not		//
+	bool modCat;		//while 0, can't mod cat.	//
 	FileHandle tablesFH;	//"Tables" filehandle		//	  
 	RID* tTableRID;		//tables table RID		//
 	RID* cTableIdRID;	//columns table-id rid		//

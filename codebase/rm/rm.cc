@@ -106,6 +106,8 @@ RC RelationManager::createCatalog()
 		return (1);	//already exists, can't create again
 	}
 
+	modCat = 1;
+
 	tTableRID 	= (RID*)malloc(sizeof(RID));
 	cTableIdRID	= (RID*)malloc(sizeof(RID));
 	cTableNameRID	= (RID*)malloc(sizeof(RID));
@@ -189,6 +191,7 @@ RC RelationManager::createCatalog()
 
 	free(data);
 	catExists = 1;
+	modCat = 0;
 	return 0;
 }
 
@@ -236,7 +239,7 @@ RC RelationManager::deleteCatalog()
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
 {
-
+		
     return -1;
 }
 
