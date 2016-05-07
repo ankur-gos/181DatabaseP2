@@ -4,7 +4,6 @@
 
 #include <string>
 #include <vector>
-
 #include "../rbf/rbfm.h"
 
 using namespace std;

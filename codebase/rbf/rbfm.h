@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <climits>
+#include <stdlib.h>
+#include <cstdlib>
 
 #include "../rbf/pfm.h"
 
