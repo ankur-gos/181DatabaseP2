@@ -1,6 +1,7 @@
 
 #include "rm.h"
 #include <stdlib.h>
+#include <cstring>
 
 RelationManager* RelationManager::_rm = 0;
 
@@ -47,6 +48,14 @@ RelationManager::~RelationManager()
 RC RelationManager::createCatalog()
 {
 	static bool exists = 0;
+
+
+	if (exists)
+	{
+		return (1);	//already exists, can't create again
+	}
+
+
 	RecordBasedFileManager *rbf = RecordBasedFileManager::instance(); 
 
 	vector<Attribute> tablesAttr;
@@ -56,10 +65,6 @@ RC RelationManager::createCatalog()
 	const string COL_NAME = "Columns";
 
 	
-	if (exists)
-	{
-		return (1);	//already exists, can't create again
-	}
 	
 	void* data = malloc(1024);
 	char offset = 0;
@@ -80,42 +85,42 @@ RC RelationManager::createCatalog()
 
 		
 	*(char*)data = 0;				//why did I subject myself to this?
-	offset = offset + 1;
-	tableID = 1;
-	*(int*)((char*)data + offset)= tableID;
-	offset = offset + 4;
-	stringLength = 6;	
-	*(int*)((char*)data + offset)= stringLength;
-	offset = offset + 4;	
-	*((char*)data + offset)= TABLES_NAME;
-	offset = offset + 6;
-	*(int*)((char*)data + offset)= stringLength;
-	offset = offset + 4;	
-	*((char*)data + offset)= TABLES_NAME;
-	offset = offset + 6;
+	offset = offset + 1;	//offset by nullByte
+	tableID = 1;	//tables is first table
+	*(int*)((char*)data + offset)= tableID;	//add tableID int to data
+	offset = offset + 4;	//offset by sizeof tableID
+	stringLength = 6;	//length of the name is 6 bytes
+	*(int*)((char*)data + offset)= stringLength;	//add the length of the string to data
+	offset = offset + 4;	//offset by length of the length of the string
+	strcpy(((char*)data + offset), TABLES_NAME.c_str());	//add string to data (table name)
+	offset = offset + stringLength;	//offset by length of the string
+	*(int*)((char*)data + offset)= stringLength;	//add length of the string to data
+	offset = offset + 4;	//offset by length of the length of the string
+	strcpy(((char*)data + offset), TABLES_NAME.c_str());	//add string to data
+	offset = offset + stringLength;	//offset by length of the string
 
-	rbf.insertRecord(tablesFH, tablesAttr, data, tablesTableRID);
+	rbf->insertRecord(tablesFH, tablesAttr, data, tablesTableRID);
 	
 	//add columns table to tables table
-	offset = 0;
+	/*offset = 0;
 	*(char*)data = 0;				//why did I subject myself to this again?
-	offset = offset + 1;
-	tableID = 1;
-	*(int*)((char*)data + offset)= tableID;
-	offset = offset + 4;
-	stringLength = 6;	
+	offset = offset + 1;		//offset by null byte
+	tableID = 2;			//. columns is second table
+	*(int*)((char*)data + offset)= tableID;	//add the tableID int to data
+	offset = offset + 4;			//offset 4 bytes for tableId int
+	stringLength = 6;	//set string length
+	*(int*)((char*)data + offset)= stringLength;	//add length of string to front of varChar
+	offset = offset + 4;	//offset by 4 bytes for length of the length of the string
+	*((char*)data + offset)= COL_NAME;	//add the string (table name)
+	offset = offset + stringLength;	//offset by length of the string
 	*(int*)((char*)data + offset)= stringLength;
-	offset = offset + 4;	
-	*((char*)data + offset)= COL_NAME;
-	offset = offset + 6;
-	*(int*)((char*)data + offset)= stringLength;
-	offset = offset + 4;	
-	*((char*)data + offset)= COL_NAME;
-	offset = offset + 6;
+	offset = offset + 4;	//offset by length of the length of the string
+	*((char*)data + offset)= COL_NAME; //add the string (file name)
+	offset = offset + stringLength;	//offset by length of the string
 
-	rbf.insertRecord(tablesFH, tablesAttr, data, colTableRID);
+	rbf->insertRecord(tablesFH, tablesAttr, data, colTableRID);
 	//Finish creating the tables table
-	
+	*/
 	//create the columns table	
 	colAttr.resize(5);
 	colAttr[0] = setAttr("table-id", TypeInt, 4);
@@ -124,11 +129,30 @@ RC RelationManager::createCatalog()
 	colAttr[3] = setAttr("column-length", TypeInt, 4);
 	colAttr[4] = setAttr("column-position", TypeInt, 4);
     	/*use rbf here to create catalog file*/
+/*
+	//add tables columns to columns table
+	offset = 0;
+	*(char*)data = 0;		//add nullbyte, no null fields
+	offset = offset + 1;		//offset by null bye
+	tableID = 1;		//tables is first table			
+	*(int*)((char*)data + offset)= tableID;
+	offset = offset + 4;
+	stringLength = 6;	
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= COL_NAME;
+	offset = offset + 6;
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= COL_NAME;
+	offset = offset + 6;
+*/
+
 	rbf->createFile(COL_NAME);
 	rbf->openFile(COL_NAME, colFH);
 	//rbf.insertRecord(colFH, colAttr, /*some void* data*/, colRID);
 	//finish creating the columns table
-		
+	
 	free(data);
 	exists = 1;
 	return -1;

@@ -75,9 +75,9 @@ private:
   	FileHandle tablesFH;					  
 	FileHandle colFH;					  					  
 	RID tablesTableRID;
-	RID tablesColRID						  
+	RID tablesColRID;						  
 	RID colTableRID;
-	RID colColRID	
+	RID colColRID;
 };
 
 #endif
