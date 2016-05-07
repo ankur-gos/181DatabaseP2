@@ -237,11 +237,12 @@ public:
         nextSlotNum++;
       }else{
         entriesReadOnPage++;
+        nextSlotNum++;
         break;
       }
     }
 
-    int conditional_index;
+    int conditional_index = 0;
     for(int i = 0; i< recordDescriptor.size(); i++){
       if(recordDescriptor[i].name == conditionAttribute){
         conditional_index = i;
@@ -262,12 +263,20 @@ public:
       memcpy(record, (char*)temp_data+1+sizeof(int), *recordSize);
       comparison = strcmp(record, (char*)value);
 
-    }else{
+    }else if(recordDescriptor[conditional_index].type == TypeInt){
       int* record = (int *) malloc(sizeof(int));
       memcpy(record, (char*)temp_data+1, sizeof(int));
       if(*record < *(int*) value){
         comparison = -1;
       }else if(*record > *(int*) value){
+        comparison = 1;
+      }
+    }else{
+      float* record = (float *) malloc(sizeof(float));
+      memcpy(record, (char*)temp_data+1, sizeof(float));
+      if(*record < *(float*) value){
+        comparison = -1;
+      }else if(*record > *(float*) value){
         comparison = 1;
       }
     }
