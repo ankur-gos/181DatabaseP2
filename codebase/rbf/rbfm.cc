@@ -130,8 +130,7 @@ RC RecordBasedFileManager::insertRecord(FileHandle &fileHandle, const vector<Att
     else
     {
         if (fileHandle.appendPage(pageData))
-            return RBFM_APPEND_FAILED;
-    }
+            return RBFM_APPEND_FAILED    }
 
     free(pageData);
     return SUCCESS;

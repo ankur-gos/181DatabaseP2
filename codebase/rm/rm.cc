@@ -449,7 +449,18 @@ RC RelationManager::scan(const string &tableName,
       const vector<string> &attributeNames,
       RM_ScanIterator &rm_ScanIterator)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    if(rbfm->openFile(tableName, fh) == -1
+        return -1;
+    vector<Attribute> attr;
+    if(this->getAttributes(tableName, attr) == -1)
+        return -1;
+    RBFM_ScanIterator iterator;
+    if(rbfm->scan(fh, attr, compOp, value, attributeNames, iterator) == -1)
+        return -1;
+    rm_ScanIterator.internalIterator = iterator;
+    return 0;
 }
 
 
