@@ -232,7 +232,7 @@ public:
       rid.pageNum = currentPage;
 
       SlotDirectoryRecordEntry entry = _rbfm->getSlotDirectoryRecordEntry(page, rid.slotNum);
-      if(entry.length == 0 && entry.offset ==0){
+      if(entry.length == 0 && entry.offset == 0){
         //tombstone, not real record
         nextSlotNum++;
       }else{
@@ -249,9 +249,37 @@ public:
       }
     }
     void* temp_data = malloc(PAGE_SIZE);
+    memset(temp_data, 0, PAGE_SIZE);
     _rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data);
-    //parse Data, compare to value. If failure, do a recursive call :)
 
+    int comparison = 0;    
+    if(recordDescriptor[conditional_index].type == TypeVarChar){
+      int * recordSize = (int*)malloc(sizeof(int));
+      memcpy(recordSize, (char*)temp_data+1, sizeof(int));
+      char * record = (char *) malloc((*recordSize)+1);
+      //set 0 to insure it is null terminated
+      memset(record, 0, *recordSize+1);
+      memcpy(record, (char*)temp_data+1+sizeof(int), *recordSize);
+      comparison = strcmp(record, (char*)value);
+
+    }else{
+      int* record = (int *) malloc(sizeof(int));
+      memcpy(record, (char*)temp_data+1, sizeof(int));
+      if(*record < *(int*) value){
+        comparison = -1;
+      }else if(*record > *(int*) value){
+        comparison = 1;
+      }
+    }
+    if(compOp == EQ_OP && comparison != 0){
+      getNextRecord(rid, data);
+    }
+    if(compOp == LE_OP && comparison >= 0){
+      getNextRecord(rid, data);
+    }
+    if(compOp == EQ_OP && comparison <= 0){
+      getNextRecord(rid, data);
+    }
     int nullSize = _rbfm->getNullIndicatorSize(attributeNames.size());
     void * nullBytes = malloc(nullSize);
 
@@ -259,7 +287,7 @@ public:
 
     for(int i = 0; i<attributeNames.size(); i++){
       int temp_data_offset = 1; //null indicator will be 1 bytes
-      void* temp_data = malloc(PAGE_SIZE);
+      //memset temp_data 0
       _rbfm->readAttribute(fileHandle, recordDescriptor, rid, attributeNames[i], temp_data);
 
       if (_rbfm->fieldIsNull((char *)temp_data, 0)){
