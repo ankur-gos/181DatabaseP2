@@ -17,6 +17,25 @@ Attribute setAttr(string name, AttrType type, AttrLength length);
 
 RelationManager::RelationManager()
 {
+  	catExists = 0;
+	tColRID		= NULL;	  
+	cColIdRID	= NULL;
+	cColNameRID	= NULL;	
+	cColTypeRID	= NULL;
+	cColLengthRID	= NULL;
+	cColPosRID	= NULL;		
+
+	tTableRID 	= NULL;
+	cTableIdRID	= NULL;
+	cTableNameRID	= NULL;
+	cFileNameRID 	= NULL;
+	
+	tColRID		= NULL;	  
+	cColIdRID	= NULL;
+	cColNameRID	= NULL;	
+	cColTypeRID	= NULL;
+	cColLengthRID	= NULL;
+	cColPosRID	= NULL;		
 }
 
 RelationManager::~RelationManager()
@@ -86,13 +105,28 @@ void catCDSetup(void* data, int tableID, string colName, int colType, int colLen
 */
 RC RelationManager::createCatalog()
 {
-	static bool exists = 0;
-
-
-	if (exists)
+	if (catExists)
 	{
 		return (1);	//already exists, can't create again
 	}
+	tColRID		= (RID*)malloc(sizeof(RID));	  
+	cColIdRID	= (RID*)malloc(sizeof(RID));
+	cColNameRID	= (RID*)malloc(sizeof(RID));
+	cColTypeRID	= (RID*)malloc(sizeof(RID));
+	cColLengthRID	= (RID*)malloc(sizeof(RID));
+	cColPosRID	= (RID*)malloc(sizeof(RID));	
+
+	tTableRID 	= (RID*)malloc(sizeof(RID));
+	cTableIdRID	= (RID*)malloc(sizeof(RID));
+	cTableNameRID	= (RID*)malloc(sizeof(RID));
+	cFileNameRID 	= (RID*)malloc(sizeof(RID));
+	
+	tColRID		= (RID*)malloc(sizeof(RID)); 
+	cColIdRID	= (RID*)malloc(sizeof(RID));
+	cColNameRID	= (RID*)malloc(sizeof(RID));	
+	cColTypeRID	= (RID*)malloc(sizeof(RID));
+	cColLengthRID	= (RID*)malloc(sizeof(RID));
+	cColPosRID	= (RID*)malloc(sizeof(RID));	
 
 
 	RecordBasedFileManager *rbf = RecordBasedFileManager::instance(); 
@@ -117,11 +151,11 @@ RC RelationManager::createCatalog()
 	rbf->openFile(TABLES_NAME, tablesFH);
 	
 	catTDSetup(data, 1, TABLES_NAME);
-	rbf->insertRecord(tablesFH, tablesAttr, data, tTableRID);
+	rbf->insertRecord(tablesFH, tablesAttr, data, *tTableRID);
 	
 	//add columns table to tables table
 	catTDSetup(data, 2, COL_NAME);
-	rbf->insertRecord(tablesFH, tablesAttr, data, tColRID);
+	rbf->insertRecord(tablesFH, tablesAttr, data, *tColRID);
 	//Finish creating the tables table
 	
 	//create the columns table	
@@ -137,40 +171,86 @@ RC RelationManager::createCatalog()
 	
 	
 	catCDSetup(data, 1, "table-id", TypeInt, 4, 1);
-	rbf->insertRecord(colFH, colAttr, data, cTableIdRID);
+	rbf->insertRecord(colFH, colAttr, data, *cTableIdRID);
 	
 	catCDSetup(data, 1, "table-name", TypeVarChar, 50, 2);
-	rbf->insertRecord(colFH, colAttr, data, cTableNameRID);
+	rbf->insertRecord(colFH, colAttr, data, *cTableNameRID);
 	
 	catCDSetup(data, 1, "file-name", TypeVarChar, 50, 3);
-	rbf->insertRecord(colFH, colAttr, data, cFileNameRID);
+	rbf->insertRecord(colFH, colAttr, data, *cFileNameRID);
 	
 
 	catCDSetup(data, 2, "table-id", TypeInt, 4, 1);
-	rbf->insertRecord(colFH, colAttr, data, cColIdRID);
+	rbf->insertRecord(colFH, colAttr, data, *cColIdRID);
 	
 	catCDSetup(data, 2, "column-name", TypeVarChar, 50, 2);
-	rbf->insertRecord(colFH, colAttr, data, cColNameRID);
+	rbf->insertRecord(colFH, colAttr, data, *cColNameRID);
 	
 	catCDSetup(data, 2, "column-type", TypeInt, 4, 3);
-	rbf->insertRecord(colFH, colAttr, data, cColTypeRID);
+	rbf->insertRecord(colFH, colAttr, data, *cColTypeRID);
 	
 	catCDSetup(data, 2, "column-length", TypeInt, 4, 4);
-	rbf->insertRecord(colFH, colAttr, data, cColLengthRID);
+	rbf->insertRecord(colFH, colAttr, data, *cColLengthRID);
 	
 	catCDSetup(data, 2, "column-position", TypeInt, 4, 5);
-	rbf->insertRecord(colFH, colAttr, data, cColPosRID);
+	rbf->insertRecord(colFH, colAttr, data, *cColPosRID);
 	//finish creating the columns table
 	
 
 	free(data);
-	exists = 1;
-	return -1;
+	catExists = 1;
+	return 0;
 }
 
 RC RelationManager::deleteCatalog()
 {
-    return -1;
+	RecordBasedFileManager* rbf = RecordBasedFileManager::instance();
+
+	catExists = 0;
+
+	rbf->closeFile(colFH);
+	rbf->closeFile(tablesFH);
+
+	rbf->destroyFile("Columns");
+	rbf->destroyFile("Tables");	
+
+
+	free(tTableRID);
+	free(cTableIdRID);
+	free(cTableNameRID);
+	free(cFileNameRID);
+	
+	free(tColRID);	  
+	free(cColIdRID);
+	free(cColNameRID);	
+	free(cColTypeRID);
+	free(cColLengthRID);
+	free(cColPosRID);		
+
+	free(tTableRID);
+	free(cTableIdRID);
+	free(cTableNameRID);
+	free(cFileNameRID);
+	
+	tColRID		= NULL;	  
+	cColIdRID	= NULL;
+	cColNameRID	= NULL;	
+	cColTypeRID	= NULL;
+	cColLengthRID	= NULL;
+	cColPosRID	= NULL;		
+
+	tTableRID 	= NULL;
+	cTableIdRID	= NULL;
+	cTableNameRID	= NULL;
+	cFileNameRID 	= NULL;
+	
+	tColRID		= NULL;	  
+	cColIdRID	= NULL;
+	cColNameRID	= NULL;	
+	cColTypeRID	= NULL;
+	cColLengthRID	= NULL;
+	cColPosRID	= NULL;		
+	return -1;
 }
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
