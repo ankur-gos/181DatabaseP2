@@ -69,6 +69,13 @@ protected:
 
 private:
   static RelationManager *_rm;
+
+
+	//file handles and rids used for the catalog
+  	FileHandle tablesFH;					  
+	FileHandle colFH;					  					  
+	RID tablesRID;						  
+	RID colRID;	
 };
 
 #endif
