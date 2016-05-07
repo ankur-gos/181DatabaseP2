@@ -14,16 +14,12 @@ RelationManager* RelationManager::instance()
 }
 
 Attribute setAttr(string name, AttrType type, AttrLength length); 
+void catTDSetup(void* data, int tableID, string tableName);
+void catCDSetup(void* data, int tableID, string colName, int colType, int colLength, int colPos);
 
 RelationManager::RelationManager()
 {
   	catExists = 0;
-	tColRID		= NULL;	  
-	cColIdRID	= NULL;
-	cColNameRID	= NULL;	
-	cColTypeRID	= NULL;
-	cColLengthRID	= NULL;
-	cColPosRID	= NULL;		
 
 	tTableRID 	= NULL;
 	cTableIdRID	= NULL;
@@ -109,12 +105,8 @@ RC RelationManager::createCatalog()
 	{
 		return (1);	//already exists, can't create again
 	}
-	tColRID		= (RID*)malloc(sizeof(RID));	  
-	cColIdRID	= (RID*)malloc(sizeof(RID));
-	cColNameRID	= (RID*)malloc(sizeof(RID));
-	cColTypeRID	= (RID*)malloc(sizeof(RID));
-	cColLengthRID	= (RID*)malloc(sizeof(RID));
-	cColPosRID	= (RID*)malloc(sizeof(RID));	
+
+	modCat = 1;
 
 	tTableRID 	= (RID*)malloc(sizeof(RID));
 	cTableIdRID	= (RID*)malloc(sizeof(RID));
@@ -169,7 +161,7 @@ RC RelationManager::createCatalog()
 	rbf->createFile(COL_NAME);
 	rbf->openFile(COL_NAME, colFH);
 	
-	
+	//add the columns of "Tables" and "Columns" to "Columns"	
 	catCDSetup(data, 1, "table-id", TypeInt, 4, 1);
 	rbf->insertRecord(colFH, colAttr, data, *cTableIdRID);
 	
@@ -199,6 +191,7 @@ RC RelationManager::createCatalog()
 
 	free(data);
 	catExists = 1;
+	modCat = 0;
 	return 0;
 }
 
@@ -206,15 +199,17 @@ RC RelationManager::deleteCatalog()
 {
 	RecordBasedFileManager* rbf = RecordBasedFileManager::instance();
 
-	catExists = 0;
-
-	rbf->closeFile(colFH);
+	catExists = 0;	//begin by saying the catalog is gone
+	
+	//close the filehandles
+	rbf->closeFile(colFH);	
 	rbf->closeFile(tablesFH);
 
+	//destroy the files
 	rbf->destroyFile("Columns");
 	rbf->destroyFile("Tables");	
 
-
+	//free all of the catalog RIDs
 	free(tTableRID);
 	free(cTableIdRID);
 	free(cTableNameRID);
@@ -227,17 +222,6 @@ RC RelationManager::deleteCatalog()
 	free(cColLengthRID);
 	free(cColPosRID);		
 
-	free(tTableRID);
-	free(cTableIdRID);
-	free(cTableNameRID);
-	free(cFileNameRID);
-	
-	tColRID		= NULL;	  
-	cColIdRID	= NULL;
-	cColNameRID	= NULL;	
-	cColTypeRID	= NULL;
-	cColLengthRID	= NULL;
-	cColPosRID	= NULL;		
 
 	tTableRID 	= NULL;
 	cTableIdRID	= NULL;
@@ -250,12 +234,12 @@ RC RelationManager::deleteCatalog()
 	cColTypeRID	= NULL;
 	cColLengthRID	= NULL;
 	cColPosRID	= NULL;		
-	return -1;
+	return 0;
 }
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
 {
-
+		
     return -1;
 }
 
@@ -348,6 +332,9 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
 
 RC RelationManager::insertTuple(const string &tableName, const void *data, RID &rid)
 {
+    if(this->modCat != 1 && (tableName == "Tables" || tableName == "Columns"))
+        return -1;
+
     FileHandle fh;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     RC err;
@@ -366,6 +353,8 @@ RC RelationManager::insertTuple(const string &tableName, const void *data, RID &
 
 RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 {
+    if(this->modCat != 1 && (tableName == "Tables" || tableName == "Columns"))
+        return -1;
     FileHandle fh;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     RC err;
@@ -384,6 +373,8 @@ RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 
 RC RelationManager::updateTuple(const string &tableName, const void *data, const RID &rid)
 {
+    if(this->modCat != 1 && (tableName == "Tables" || tableName == "Columns"))
+        return -1;
     FileHandle fh;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     RC err;
