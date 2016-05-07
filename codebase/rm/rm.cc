@@ -31,6 +31,7 @@ RC RelationManager::deleteCatalog()
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
 {
+
     return -1;
 }
 
@@ -46,32 +47,98 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
 
 RC RelationManager::insertTuple(const string &tableName, const void *data, RID &rid)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->insertRecord(fh, attrs, data, rid);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->deleteRecord(fh, attrs, rid);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::updateTuple(const string &tableName, const void *data, const RID &rid)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->updateRecord(fh, attrs, data, rid);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::readTuple(const string &tableName, const RID &rid, void *data)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->readRecord(fh, attrs, rid, data);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::printTuple(const vector<Attribute> &attrs, const void *data)
 {
-	return -1;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+	return rbfm->printAttributes(attrs, data);
 }
 
 RC RelationManager::readAttribute(const string &tableName, const RID &rid, const string &attributeName, void *data)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    RC err;
+    err = rbfm->openFile(tableName, fh);
+    if(err == -1)
+        return err;
+    vector<Attribute> attrs;
+    err = this->getAttributes(tableName, attrs);
+    if(err == -1)
+        return err;
+    err = rbfm->updateRecord(fh, attrs, rid, attributeName, data);
+    if(err == -1)
+        return err;
+    return 0;
 }
 
 RC RelationManager::scan(const string &tableName,
