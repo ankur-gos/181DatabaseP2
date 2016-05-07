@@ -1,5 +1,6 @@
 
 #include "rm.h"
+#include <stdlib.h>
 
 RelationManager* RelationManager::_rm = 0;
 
@@ -11,6 +12,8 @@ RelationManager* RelationManager::instance()
     return _rm;
 }
 
+Attribute setAttr(string name, AttrType type, AttrLength length); 
+
 RelationManager::RelationManager()
 {
 }
@@ -19,9 +22,116 @@ RelationManager::~RelationManager()
 {
 }
 
+
+/*Notes about the contents of the catalog
+	The catalog contains 2 tables:
+		Tables
+			table-id	int
+			table-name	varChar(50)
+			file-name	varChar(50)	
+				can use our own naming convention for file-name
+		Columns
+			table-id	int	foreign key
+			column-name	varChar(50)
+			column-type	int	(enumerated values for int/char/varChar)
+			column-length	int
+			column-position	int
+		table-id and column position both begin at 1, not 0.
+	if catalog already exists, return error
+
+	struct attribute contains
+		string name
+		attrType type
+		attrLength length
+*/
 RC RelationManager::createCatalog()
 {
-    return -1;
+	static bool exists = 0;
+	RecordBasedFileManager *rbf = RecordBasedFileManager::instance(); 
+
+	vector<Attribute> tablesAttr;
+	vector<Attribute> colAttr;
+
+	const string TABLES_NAME = "Tables";
+	const string COL_NAME = "Columns";
+
+	
+	if (exists)
+	{
+		return (1);	//already exists, can't create again
+	}
+	
+	void* data = malloc(1024);
+	char offset = 0;
+	
+	//create the Tables table	
+	int tableID;
+	int stringLength;
+
+	tablesAttr.resize(3);
+	tablesAttr[0] = setAttr("table-id", TypeInt, 4);
+	tablesAttr[1] = setAttr("table-name", TypeVarChar, 50);
+	tablesAttr[2] = setAttr("file-name", TypeVarChar, 50);
+	
+	/*use rbf here to create catalog file*/
+	rbf->createFile(TABLES_NAME);
+	rbf->openFile(TABLES_NAME, tablesFH);
+	
+
+		
+	*(char*)data = 0;				//why did I subject myself to this?
+	offset = offset + 1;
+	tableID = 1;
+	*(int*)((char*)data + offset)= tableID;
+	offset = offset + 4;
+	stringLength = 6;	
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= TABLES_NAME;
+	offset = offset + 6;
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= TABLES_NAME;
+	offset = offset + 6;
+
+	rbf.insertRecord(tablesFH, tablesAttr, data, tablesTableRID);
+	
+	//add columns table to tables table
+	offset = 0;
+	*(char*)data = 0;				//why did I subject myself to this again?
+	offset = offset + 1;
+	tableID = 1;
+	*(int*)((char*)data + offset)= tableID;
+	offset = offset + 4;
+	stringLength = 6;	
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= COL_NAME;
+	offset = offset + 6;
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= COL_NAME;
+	offset = offset + 6;
+
+	rbf.insertRecord(tablesFH, tablesAttr, data, colTableRID);
+	//Finish creating the tables table
+	
+	//create the columns table	
+	colAttr.resize(5);
+	colAttr[0] = setAttr("table-id", TypeInt, 4);
+	colAttr[1] = setAttr("column-name", TypeVarChar, 50);	
+	colAttr[2] = setAttr("column-type", TypeInt, 4);
+	colAttr[3] = setAttr("column-length", TypeInt, 4);
+	colAttr[4] = setAttr("column-position", TypeInt, 4);
+    	/*use rbf here to create catalog file*/
+	rbf->createFile(COL_NAME);
+	rbf->openFile(COL_NAME, colFH);
+	//rbf.insertRecord(colFH, colAttr, /*some void* data*/, colRID);
+	//finish creating the columns table
+		
+	free(data);
+	exists = 1;
+	return -1;
 }
 
 RC RelationManager::deleteCatalog()
@@ -153,3 +263,11 @@ RC RelationManager::scan(const string &tableName,
 
 
 
+Attribute setAttr(string name, AttrType type, AttrLength length)
+{
+	Attribute attr;
+	attr.name = name;
+	attr.type = type;
+	attr.length = length;
+	return (attr);
+} 
