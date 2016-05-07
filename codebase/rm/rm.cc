@@ -152,6 +152,19 @@ RC RelationManager::deleteTable(const string &tableName)
 
 RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &attrs)
 {
+    RC err;
+    if(this->createCatalog() == -1)
+        return -1;
+    // Scan using the lower level rbfm scanner. 
+    RBFM_Iterator iterator;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    if(rbfm->openFile("Tables", fh) == -1)
+        return -1;
+    if(rbfm->scan(fh, ))
+    
+
+    this->scan("Tables", "table-name", EQ_OP, (void *)tableName, )
     return -1;
 }
 
