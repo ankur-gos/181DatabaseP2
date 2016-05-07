@@ -318,7 +318,7 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
         offset += *nameLength;
         int *colType = (int *)((char *)data + offset);
         offset += 4;
-        int *colLength = (int *)((char *)data + offset);
+        AttrLength *colLength = (AttrLength *)((char *)data + offset);
         offset += 4;
         // int *colPos = (int *)((char *)data + offset);
         Attribute a = {columnName, (AttrType)*colType, *colLength};
