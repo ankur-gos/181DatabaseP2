@@ -1,4 +1,4 @@
-
+#include "rbfm.h"
 #include "rm.h"
 #include <stdlib.h>
 #include <cstring>
@@ -433,7 +433,12 @@ RC RelationManager::scan(const string &tableName,
       const vector<string> &attributeNames,
       RM_ScanIterator &rm_ScanIterator)
 {
-    return -1;
+  FileHandle fh; //open 1st page
+  vector<Attribute> &recordDescriptor;
+  _rm->readAttribute(tableName, recordDescriptor);
+  rm_ScanIterator = RM_ScanIterator(fh, recordDescriptor, conditionAttribute, 
+                                    compOp, value, attributeNames, rbfm);
+  return rm_ScanIterator;
 }
 
 
