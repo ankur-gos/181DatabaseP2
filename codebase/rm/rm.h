@@ -13,17 +13,8 @@ using namespace std;
 // RM_ScanIterator is an iteratr to go through tuples
 class RM_ScanIterator {
 public:
-  RM_ScanIterator(FileHandle fh,
-                  vector<Attribute> *recordDescriptor,
-                  const string &conditionAttribute,
-                  const CompOp compOp,                  
-                  const void *value,                    
-                  const vector<string> &attributeNames,
-                  RecordBasedFileManager &rbfm) 
+  RM_ScanIterator() 
                   {
-                    fh = fh;
-                    rbfm->scan(fh, recordDescriptor, conditionAttribute, 
-                               compOp, value, attributeNames, rbfm_ScanIterator);
   };
 
   ~RM_ScanIterator() {};
@@ -33,16 +24,15 @@ public:
   vector<string> *conditionAttribute;
   CompOp compOp;
   void *value;
-  vector<string> &attributeNames;
-  RBFM_ScanIterator *rbfm_ScanIterator;
+  vector<string> attributeNames;
   RID *rid;
 
   // "data" follows the same format as RelationManager::insertTuple()
   RC getNextTuple(RID &rid, void *data) {
 
-    RC rc = rbfm_ScanIterator->getNextRecord(rid, data);
+    // RC rc = rbfm_ScanIterator->getNextRecord(rid, data);
     //data now points to correct attribute data. How does this convert to tuple?
-    return rc;
+    return 0;
   };
 
   RC close() {
