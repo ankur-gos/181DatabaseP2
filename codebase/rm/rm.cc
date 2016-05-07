@@ -1,5 +1,6 @@
 
 #include "rm.h"
+#include <stdlib.h>
 
 RelationManager* RelationManager::_rm = 0;
 
@@ -11,7 +12,7 @@ RelationManager* RelationManager::instance()
     return _rm;
 }
 
-void* formatData(nullbytes, attributes
+Attribute setAttr(string name, AttrType type, AttrLength length); 
 
 RelationManager::RelationManager()
 {
@@ -46,7 +47,7 @@ RelationManager::~RelationManager()
 RC RelationManager::createCatalog()
 {
 	static bool exists = 0;
-	recordBasedFileManager rbf; 
+	RecordBasedFileManager *rbf = RecordBasedFileManager::instance(); 
 
 	vector<Attribute> tablesAttr;
 	vector<Attribute> colAttr;
@@ -54,60 +55,81 @@ RC RelationManager::createCatalog()
 	const string TABLES_NAME = "Tables";
 	const string COL_NAME = "Columns";
 
-	/*these should maybe be private variables in the RM class*/
-	/*down to here*******************************************///
-
+	
 	if (exists)
 	{
 		return (1);	//already exists, can't create again
 	}
 	
-	//create the Tables table
-	tablesAttr.resize(3);
-	tablesAttr[0].name = "table-id";
-	tablesAttr[0].type = TypeInt;
-	tablesAttr[0].length = 4;
-
-	tablesAttr[1].name = "table-name";
-	tablesAttr[1].type = TypeVarChar;
-	tablesAttr[1].length = 50;
+	void* data = malloc(1024);
+	char offset = 0;
 	
-	tablesAttr[2].name = "file-name";
-	tablesAttr[2].type = TypeVarChar;
-	tablesAttr[2].length = 50;
+	//create the Tables table	
+	int tableID;
+	int stringLength;
+
+	tablesAttr.resize(3);
+	tablesAttr[0] = setAttr("table-id", TypeInt, 4);
+	tablesAttr[1] = setAttr("table-name", TypeVarChar, 50);
+	tablesAttr[2] = setAttr("file-name", TypeVarChar, 50);
+	
 	/*use rbf here to create catalog file*/
-	rbf.createFile(TABLES_NAME);
-	rbf.openFile(TABLES_NAME, tablesFH);
-	rbf.insertRecord(tablesFH, tablesAttr, /*some void* data*/, tablesRID);
+	rbf->createFile(TABLES_NAME);
+	rbf->openFile(TABLES_NAME, tablesFH);
+	
+
+		
+	*(char*)data = 0;				//why did I subject myself to this?
+	offset = offset + 1;
+	tableID = 1;
+	*(int*)((char*)data + offset)= tableID;
+	offset = offset + 4;
+	stringLength = 6;	
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= TABLES_NAME;
+	offset = offset + 6;
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= TABLES_NAME;
+	offset = offset + 6;
+
+	rbf.insertRecord(tablesFH, tablesAttr, data, tablesTableRID);
+	
+	//add columns table to tables table
+	offset = 0;
+	*(char*)data = 0;				//why did I subject myself to this again?
+	offset = offset + 1;
+	tableID = 1;
+	*(int*)((char*)data + offset)= tableID;
+	offset = offset + 4;
+	stringLength = 6;	
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= COL_NAME;
+	offset = offset + 6;
+	*(int*)((char*)data + offset)= stringLength;
+	offset = offset + 4;	
+	*((char*)data + offset)= COL_NAME;
+	offset = offset + 6;
+
+	rbf.insertRecord(tablesFH, tablesAttr, data, colTableRID);
 	//Finish creating the tables table
 	
 	//create the columns table	
 	colAttr.resize(5);
-	colAttr[0].name = "table-id";
-	colAttr[0].type = TypeInt;
-	colAttr[0].length = 4;
-
-	colAttr[1].name = "column-name";
-	colAttr[1].type = TypeVarChar;
-	colAttr[1].length = 50;
-	
-	colAttr[2].name = "column-type";
-	colAttr[2].type = TypeInt;
-	colAttr[2].length = 4;
-	
-	colAttr[3].name = "column-length";
-	colAttr[3].type = TypeInt;
-	colAttr[3].length = 4;
-
-	colAttr[4].name = "column-position";
-	colAttr[4].type = TypeInt;
-	colAttr[4].length = 4;
+	colAttr[0] = setAttr("table-id", TypeInt, 4);
+	colAttr[1] = setAttr("column-name", TypeVarChar, 50);	
+	colAttr[2] = setAttr("column-type", TypeInt, 4);
+	colAttr[3] = setAttr("column-length", TypeInt, 4);
+	colAttr[4] = setAttr("column-position", TypeInt, 4);
     	/*use rbf here to create catalog file*/
-	rbf.createFile(COL_NAME);
-	rbf.openFile(COL_NAME, colFH);
-	rbf.insertRecord(colFH, colAttr, /*some void* data*/, colRID);
+	rbf->createFile(COL_NAME);
+	rbf->openFile(COL_NAME, colFH);
+	//rbf.insertRecord(colFH, colAttr, /*some void* data*/, colRID);
 	//finish creating the columns table
 		
+	free(data);
 	exists = 1;
 	return -1;
 }
@@ -174,3 +196,11 @@ RC RelationManager::scan(const string &tableName,
 
 
 
+Attribute setAttr(string name, AttrType type, AttrLength length)
+{
+	Attribute attr;
+	attr.name = name;
+	attr.type = type;
+	attr.length = length;
+	return (attr);
+} 

@@ -74,8 +74,10 @@ private:
 	//file handles and rids used for the catalog
   	FileHandle tablesFH;					  
 	FileHandle colFH;					  					  
-	RID tablesRID;						  
-	RID colRID;	
+	RID tablesTableRID;
+	RID tablesColRID						  
+	RID colTableRID;
+	RID colColRID	
 };
 
 #endif
