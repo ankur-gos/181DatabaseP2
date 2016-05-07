@@ -153,6 +153,7 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
   SlotDirectoryRecordEntry getSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber);
   SlotDirectoryHeader getSlotDirectoryHeader(void * page);
   int getNullIndicatorSize(int fieldCount);
+  bool fieldIsNull(char *nullIndicator, int i);
 public:
 
 protected:
@@ -173,8 +174,6 @@ private:
 
   unsigned getPageFreeSpaceSize(void * page);
   unsigned getRecordSize(const vector<Attribute> &recordDescriptor, const void *data);
-
-  bool fieldIsNull(char *nullIndicator, int i);
 
   void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
   void getRecordAtOffset(void *record, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
@@ -256,14 +255,40 @@ public:
     int nullSize = _rbfm->getNullIndicatorSize(attributeNames.size());
     void * nullBytes = malloc(nullSize);
 
+    int offset_to_data = nullSize;
+
     for(int i = 0; i<attributeNames.size(); i++){
+      int temp_data_offset = 1; //null indicator will be 1 bytes
       void* temp_data = malloc(PAGE_SIZE);
       _rbfm->readAttribute(fileHandle, recordDescriptor, rid, attributeNames[i], temp_data);
-      //check if null
-      //edit nullBytes if possible
-      //discard null byte, 
-      //get size of field
-      //copy into data
+
+      if (_rbfm->fieldIsNull((char *)temp_data, 0)){
+        int indicatorIndex = (i+1) / CHAR_BIT;
+        int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+        ((char *)nullBytes)[indicatorIndex] |= indicatorMask;
+      }else{
+        int attr_index = 0;
+        for(int j = 0; j< recordDescriptor.size(); j++){
+          if(recordDescriptor[j].name == attributeNames[i]){
+            attr_index = j;
+            break;
+          }
+        }
+        //get size of field
+        //copy into data+offsettodata
+        //edit offset
+        memcpy((char*) data + offset_to_data, (char*)temp_data+temp_data_offset, VARCHAR_LENGTH_SIZE);
+
+        if (recordDescriptor[attr_index].type == TypeVarChar)
+        {
+            int* field_size = (int*)malloc(sizeof(int));
+            memcpy(field_size, (char*)temp_data+temp_data_offset, VARCHAR_LENGTH_SIZE);
+
+            offset_to_data += VARCHAR_LENGTH_SIZE;
+            temp_data_offset += VARCHAR_LENGTH_SIZE;
+            memcpy((char*) data + offset_to_data, (char*)temp_data+temp_data_offset, *field_size);
+        }
+      }
       free(temp_data);
     }
     //get attribute pointed at by conditionAttribute

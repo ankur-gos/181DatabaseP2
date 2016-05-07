@@ -493,16 +493,23 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     //read into data from offset_to_record of size nullIndicator size
     char* nullBytes = (char*) malloc(nullIndicatorSize);
     memcpy(nullBytes, (char*)page+offset_to_record, nullIndicatorSize);
-    memcpy(data, nullBytes, nullIndicatorSize);
-    //copy null bytes into data
+
+
+    // with only 1 record we only need 1 byte to represent nulls
+    int recordNullIndicatorSize = 1; 
+
+    //copy null byte into data if necessary
     if(fieldIsNull(nullBytes, index)){
+        int indicatorIndex = (0+1) / CHAR_BIT;
+        int indicatorMask  = 1 << (CHAR_BIT - 1 - (0 % CHAR_BIT));
+        ((char*) data)[indicatorIndex] |= indicatorMask;
+        //if null, we don't have any other data to return so we can exit now
         return 0;
     }
-    //check if desired attr is null. if so we can return
 
     int offset_to_null_indicator = offset_to_record + sizeof(RecordLength);
 
-    int offset_to_field_dir = offset_to_null_indicator + nullIndicatorSize;
+    int offset_to_field_dir = offset_to_null_indicator + recordNullIndicatorSize;
 
     //I'm assuming offset is relative to start of record :) 
     //The offset definitely does point to the end of the field
@@ -514,7 +521,7 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     // rec_offset keeps track of start of column, so end-start = total size
     uint32_t fieldSize = endPointer - startPointer;
 
-    unsigned data_offset = nullIndicatorSize;
+    unsigned data_offset = recordNullIndicatorSize;
     // Special case for varchar, we must give data the size of varchar first
     if (recordDescriptor[index].type == TypeVarChar)
     {
@@ -526,7 +533,6 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     //read page given by filehandle
     //getSlotE
     return 0;
-
 }
 
 RC RecordBasedFileManager::scan(FileHandle &fileHandle,
