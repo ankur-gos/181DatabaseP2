@@ -23,7 +23,46 @@ RelationManager::~RelationManager()
 {
 }
 
+void catTDSetup(void* data, int tableID, string tableName) 
+{
+	int stringLength = 0;
+	int offset = 0;
+	*(char*)data = 0;				//why did I subject myself to this?
+	offset = offset + 1;	//offset by nullByte
+	*(int*)((char*)data + offset)= tableID;	//add tableID int to data
+	offset = offset + 4;	//offset by sizeof tableID
+	stringLength = tableName.length();	//length of the name is 6 bytes
+	*(int*)((char*)data + offset)= stringLength;	//add the length of the string to data
+	offset = offset + 4;	//offset by length of the length of the string
+	strcpy(((char*)data + offset), tableName.c_str());	//add string to data (table name)
+	offset = offset + stringLength;	//offset by length of the string
+	*(int*)((char*)data + offset)= stringLength;	//add length of the string to data
+	offset = offset + 4;	//offset by length of the length of the string
+	strcpy(((char*)data + offset), tableName.c_str());	//add string to data
+	offset = offset + stringLength;	//offset by length of the string
+}
 
+
+void catCDSetup(void* data, int tableID, string colName, int colType, int colLength, int colPos)
+{
+	int stringLength = 0;
+	int offset = 0;
+	*(char*)data = 0;		//add nullbyte, no null fields
+	offset = offset + 1;		//offset by null bye
+	*(int*)((char*)data + offset)= tableID;	//add table id to the table
+	offset = offset + 4;	//offset by size of table id (4 bytes)
+	stringLength = colName.length();	//size of column-name field "table-id"
+	*(int*)((char*)data + offset)= stringLength;	//add length of the string to data
+	offset = offset + 4;	//offset by length of the length of the string
+	strcpy(((char*)data + offset), colName.c_str());	//add string to data "table-id"
+	offset = offset + stringLength;	//offset by length of the string
+	*(int*)((char*)data + offset) = colType;
+	offset = offset + 4;	//offset by column-type	
+	*(int*)((char*)data + offset) = colLength;
+	offset = offset + 4;	//offset by column-length	
+	*(int*)((char*)data + offset) = colPos;
+	offset = offset + 4;	//offset by column-position
+} 
 /*Notes about the contents of the catalog
 	The catalog contains 2 tables:
 		Tables
@@ -62,16 +101,11 @@ RC RelationManager::createCatalog()
 	vector<Attribute> colAttr;
 
 	const string TABLES_NAME = "Tables";
-	const string COL_NAME = "Columns";
-
-	
+	const string COL_NAME = "Columns";	
 	
 	void* data = malloc(1024);
-	char offset = 0;
 	
 	//create the Tables table	
-	int tableID;
-	int stringLength;
 
 	tablesAttr.resize(3);
 	tablesAttr[0] = setAttr("table-id", TypeInt, 4);
@@ -82,45 +116,14 @@ RC RelationManager::createCatalog()
 	rbf->createFile(TABLES_NAME);
 	rbf->openFile(TABLES_NAME, tablesFH);
 	
-
-		
-	*(char*)data = 0;				//why did I subject myself to this?
-	offset = offset + 1;	//offset by nullByte
-	tableID = 1;	//tables is first table
-	*(int*)((char*)data + offset)= tableID;	//add tableID int to data
-	offset = offset + 4;	//offset by sizeof tableID
-	stringLength = 6;	//length of the name is 6 bytes
-	*(int*)((char*)data + offset)= stringLength;	//add the length of the string to data
-	offset = offset + 4;	//offset by length of the length of the string
-	strcpy(((char*)data + offset), TABLES_NAME.c_str());	//add string to data (table name)
-	offset = offset + stringLength;	//offset by length of the string
-	*(int*)((char*)data + offset)= stringLength;	//add length of the string to data
-	offset = offset + 4;	//offset by length of the length of the string
-	strcpy(((char*)data + offset), TABLES_NAME.c_str());	//add string to data
-	offset = offset + stringLength;	//offset by length of the string
-
-	rbf->insertRecord(tablesFH, tablesAttr, data, tablesTableRID);
+	catTDSetup(data, 1, TABLES_NAME);
+	rbf->insertRecord(tablesFH, tablesAttr, data, tTableRID);
 	
 	//add columns table to tables table
-	/*offset = 0;
-	*(char*)data = 0;				//why did I subject myself to this again?
-	offset = offset + 1;		//offset by null byte
-	tableID = 2;			//. columns is second table
-	*(int*)((char*)data + offset)= tableID;	//add the tableID int to data
-	offset = offset + 4;			//offset 4 bytes for tableId int
-	stringLength = 6;	//set string length
-	*(int*)((char*)data + offset)= stringLength;	//add length of string to front of varChar
-	offset = offset + 4;	//offset by 4 bytes for length of the length of the string
-	*((char*)data + offset)= COL_NAME;	//add the string (table name)
-	offset = offset + stringLength;	//offset by length of the string
-	*(int*)((char*)data + offset)= stringLength;
-	offset = offset + 4;	//offset by length of the length of the string
-	*((char*)data + offset)= COL_NAME; //add the string (file name)
-	offset = offset + stringLength;	//offset by length of the string
-
-	rbf->insertRecord(tablesFH, tablesAttr, data, colTableRID);
+	catTDSetup(data, 2, COL_NAME);
+	rbf->insertRecord(tablesFH, tablesAttr, data, tColRID);
 	//Finish creating the tables table
-	*/
+	
 	//create the columns table	
 	colAttr.resize(5);
 	colAttr[0] = setAttr("table-id", TypeInt, 4);
@@ -129,30 +132,37 @@ RC RelationManager::createCatalog()
 	colAttr[3] = setAttr("column-length", TypeInt, 4);
 	colAttr[4] = setAttr("column-position", TypeInt, 4);
     	/*use rbf here to create catalog file*/
-/*
-	//add tables columns to columns table
-	offset = 0;
-	*(char*)data = 0;		//add nullbyte, no null fields
-	offset = offset + 1;		//offset by null bye
-	tableID = 1;		//tables is first table			
-	*(int*)((char*)data + offset)= tableID;
-	offset = offset + 4;
-	stringLength = 6;	
-	*(int*)((char*)data + offset)= stringLength;
-	offset = offset + 4;	
-	*((char*)data + offset)= COL_NAME;
-	offset = offset + 6;
-	*(int*)((char*)data + offset)= stringLength;
-	offset = offset + 4;	
-	*((char*)data + offset)= COL_NAME;
-	offset = offset + 6;
-*/
-
 	rbf->createFile(COL_NAME);
 	rbf->openFile(COL_NAME, colFH);
-	//rbf.insertRecord(colFH, colAttr, /*some void* data*/, colRID);
+	
+	
+	catCDSetup(data, 1, "table-id", TypeInt, 4, 1);
+	rbf->insertRecord(colFH, colAttr, data, cTableIdRID);
+	
+	catCDSetup(data, 1, "table-name", TypeVarChar, 50, 2);
+	rbf->insertRecord(colFH, colAttr, data, cTableNameRID);
+	
+	catCDSetup(data, 1, "file-name", TypeVarChar, 50, 3);
+	rbf->insertRecord(colFH, colAttr, data, cFileNameRID);
+	
+
+	catCDSetup(data, 2, "table-id", TypeInt, 4, 1);
+	rbf->insertRecord(colFH, colAttr, data, cColIdRID);
+	
+	catCDSetup(data, 2, "column-name", TypeVarChar, 50, 2);
+	rbf->insertRecord(colFH, colAttr, data, cColNameRID);
+	
+	catCDSetup(data, 2, "column-type", TypeInt, 4, 3);
+	rbf->insertRecord(colFH, colAttr, data, cColTypeRID);
+	
+	catCDSetup(data, 2, "column-length", TypeInt, 4, 4);
+	rbf->insertRecord(colFH, colAttr, data, cColLengthRID);
+	
+	catCDSetup(data, 2, "column-position", TypeInt, 4, 5);
+	rbf->insertRecord(colFH, colAttr, data, cColPosRID);
 	//finish creating the columns table
 	
+
 	free(data);
 	exists = 1;
 	return -1;
