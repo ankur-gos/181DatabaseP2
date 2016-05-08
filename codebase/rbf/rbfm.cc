@@ -684,9 +684,11 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     //set null bytes
     //if needed increment page, reset page data
     void* page = malloc(PAGE_SIZE);
+    fprintf(stderr, "NEP: %d\n",numberEntriesOnPage);
+    fprintf(stderr, "ERP: %d\n", entriesReadOnPage);
     if(numberEntriesOnPage == entriesReadOnPage){
       currentPage++;
-      if(currentPage>fileHandle.getNumberOfPages()){
+      if(currentPage>(fileHandle.getNumberOfPages()-1)){
         return -1; //EOF
       }
       if(fileHandle.readPage(currentPage, page) == -1)
