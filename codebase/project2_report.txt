@@ -1,5 +1,5 @@
 1. Basic information
-Team number (e.g., 01) : 
+Team number (e.g., 01) : 5 
 #1 Submitter ID : 
 #1 Submitter Name : 
 
@@ -7,22 +7,45 @@ Team number (e.g., 01) :
 
 2. Meta-data
 - Show your meta-data design (Tables and Columns table) and information about each column.
+We have 2 tables. A Tables table and a Columns table.
+"Tables" has 3 columns: 
+	table-id	TypeInt		4 Bytes
+	table-name	TypeVarChar	50 Bytes max
+	file-name	TypeVarChar	50 Bytes max
 
+"Columns" has 5 columns:
+	table-id	TypeInt		4 Bytes Foreign Key
+	column-name	TypeVarChar	50 Bytes Max
+	column-type	TypeInt		4 Bytes
+	column-length	TypeInt		4 Bytes
+	column-position	TypeInt		4 Bytes
+
+We also store several pieces of private data in memory:
+	The 8 RIDs of the records describing these 2 tables. 2 of which reference the "Tables" table and 2 of which reference the "Columns" table
+	1 boolean that says whether the catalog already exists or not
+	1 private boolean that is set by create and delete table which allow those 2 functions to modify the tuples of "Columns" and "Tables" but no one else
+	1 int storing the value of the next table-id to be allocated
+    and 2 fileHandles that hold the "Columns" and "Tables" tables open
 
 3. Internal Record Format
 - Show your record format design and describe how your design satisfies O(1) field access. If not, just mention that your team hasn't implemented this feature.
 - Describe how you store a VarChar field.
 - Describe how you deal with an update and delete.
-
+	We're using Coy's design: size of the record, followed by nullbytes, followed by an integer array with offsets from the beginning of the entire record to the end of each attribute's value
+	with the offset from the beginning of the entire record we can find any attribute within that record in O(1) time after we find the record itself.
+	We store VarChars by storing the number of chars followed by a non-null terminated string of chars
+	we update by deleting and reinserting the record
+	we delete by determining the length of the record, then shifting all records beyond that record back toward that record, overwriting it. We then leave forwarding addresses redirecting RIDs to the new values.
 
 4. Page Format
 - Show your page format design.
 - Describe how you deal with an update and delete.
-
+	We're using Coy's design
 
 5. File Format
 - Show your file format design
-
+	file-name is the same as the table-name
+	the rest of the file format is Coy's design
 
 
 6. Implementation Detail
