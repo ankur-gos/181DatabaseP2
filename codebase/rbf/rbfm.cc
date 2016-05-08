@@ -560,6 +560,14 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle,
 
                                     rbfm_ScanIterator.attributeNames = attributeNames;
                                     rbfm_ScanIterator._rbfm = _rbf_manager;
+
+                                    void* page = malloc(PAGE_SIZE);
+
+                                    if(fileHandle.readPage(0, page) == -1)
+                                        return -1;
+                                    SlotDirectoryHeader header = _rbf_manager->getSlotDirectoryHeader(page);
+                                    free(page);
+                                    rbfm_ScanIterator.entriesReadOnPage=header.recordEntriesNumber;
                                     return 0;
 }
 
