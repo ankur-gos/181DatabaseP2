@@ -686,13 +686,13 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     void* page = malloc(PAGE_SIZE);
     // fprintf(stderr, "NEP: %d\n",numberEntriesOnPage);
     // fprintf(stderr, "ERP: %d\n", entriesReadOnPage);
-    if(numberEntriesOnPage >= entriesReadOnPage){
+    if(numberEntriesOnPage == entriesReadOnPage){
       currentPage++;
       if(currentPage>(fileHandle.getNumberOfPages()-1)){
         return -1; //EOF
       }
       if(fileHandle.readPage(currentPage, page) == -1)
-        return -1;
+        return -2;
       SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
       numberEntriesOnPage=header.recordEntriesNumber;//what if its 0
       nextSlotNum=0;
@@ -724,7 +724,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     void* temp_data = malloc(PAGE_SIZE);
     memset(temp_data, 0, PAGE_SIZE);
     if(_rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data) == -1)
-      return -1;
+      return -2;
 
     int comparison = 0;    
     if(recordDescriptor[conditional_index].type == TypeVarChar){
