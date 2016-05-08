@@ -199,7 +199,7 @@ public:
   FileHandle fileHandle;
   vector<Attribute> recordDescriptor;
   string conditionAttribute;
-  CompOp compOp;    
+  CompOp compOp;
   const void *value;                 
   vector<string> attributeNames;
   RecordBasedFileManager* _rbfm;
@@ -222,7 +222,8 @@ public:
       if(currentPage>fileHandle.getNumberOfPages()){
         return -1; //EOF
       }
-      fileHandle.readPage(currentPage, page);
+      if(fileHandle.readPage(currentPage, page) == -1)
+        return -1;
       SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
       numberEntriesOnPage=header.recordEntriesNumber;//what if its 0
       nextSlotNum=0;
@@ -253,7 +254,8 @@ public:
     }
     void* temp_data = malloc(PAGE_SIZE);
     memset(temp_data, 0, PAGE_SIZE);
-    _rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data);
+    if(_rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data) == -1)
+      return -1;
 
     int comparison = 0;    
     if(recordDescriptor[conditional_index].type == TypeVarChar){
@@ -340,7 +342,12 @@ public:
     free(page);
     return 0;
   };
-  RC close() { return -1; };
+  RC close() { 
+    entriesReadOnPage = 0;
+    // fileHandle = NULL;
+    _rbfm = NULL;
+    return 0;
+  };
 };
 
 #endif

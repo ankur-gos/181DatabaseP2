@@ -239,12 +239,12 @@ RC RelationManager::deleteCatalog()
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
 {
-		
     return -1;
 }
 
 RC RelationManager::deleteTable(const string &tableName)
 {
+    
     return -1;
 }
 
@@ -447,9 +447,10 @@ RC RelationManager::scan(const string &tableName,
     vector<Attribute> attr;
     if(this->getAttributes(tableName, attr) == -1)
         return -1;
-    // RBFM_ScanIterator iterator;
-    // if(rbfm->scan(fh, attr, compOp, value, attributeNames, iterator) == -1)
-    //     return -1;
+    RBFM_ScanIterator iterator;
+    if(rbfm->scan(fh, attr, conditionAttribute, compOp, value, attributeNames, iterator) == -1)
+        return -1;
+    rm_ScanIterator.iterator = &iterator;
     return 0;
 }
 
