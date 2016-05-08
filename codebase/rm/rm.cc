@@ -103,7 +103,6 @@ void catCDSetup(void* data, int tableID, string colName, int colType, int colLen
 */
 RC RelationManager::createCatalog()
 {
-    cout << "Create catalog starting" << endl;
 	if (catExists)
 	{
 		return (1);	//already exists, can't create again
@@ -176,7 +175,6 @@ RC RelationManager::createCatalog()
 	catCDSetup(data, 1, "file-name", TypeVarChar, 50, 3);
 	rbf->insertRecord(colFH, colAttr, data, *cFileNameRID);
 	
-    cout << "column table" << endl;
 
 	catCDSetup(data, 2, "table-id", TypeInt, 4, 1);
 	rbf->insertRecord(colFH, colAttr, data, *cColIdRID);
@@ -199,7 +197,6 @@ RC RelationManager::createCatalog()
 	free(data);
 	catExists = 1;
 	modCat = 0;
-    cout << "finishing createCatalog" << endl;
 	return 0;
 }
 
@@ -252,7 +249,6 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
 {
 	FileHandle fh;
 	RecordBasedFileManager *rbf = RecordBasedFileManager::instance();
-    cout << "create_table starting" << endl;
 
 	void* data = malloc(1024);
 	void* value = malloc(50+1);
@@ -264,7 +260,6 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
 	scan("Tables", "table-name", EQ_OP, value, tableID, rmsi);	
     	if(rmsi.getNextTuple(throwawayRID, data) != RM_EOF)
 	{
-        cout << "its here" << endl;
 		return 1;	//return 1 if there's already a table with that name
 	}
 
@@ -273,7 +268,6 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
 	//insert into table into "Tables"
 	catTDSetup(data, nextTableID, tableName); 
 	modCat = 1;
-    cout << "Failing" << endl;
 	insertTuple("Tables", data, throwawayRID);
 	modCat = 0;
 	//insert columns into "Columns"
@@ -288,7 +282,6 @@ RC RelationManager::createTable(const string &tableName, const vector<Attribute>
 	free(data);
 	free(value);
 	nextTableID++;
-    cout << "createTable finishing" << endl;
 	return 0;
 }
 
@@ -373,16 +366,13 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
 
     vector<string> s;
     s.push_back("table-id");
-    printf("tableName: %s\n", tableName.c_str());
     if(rbfm->scan(fh, getCatalogTableAttributes(), "table-name", EQ_OP, (const void *)tableName.c_str(), s, iterator) == -1)
         return -1;
     RID rid;
     void *data = malloc(5);
     if(iterator.getNextRecord(rid, data) == -2)
         return -1;
-    printf("%d\n", *(int *)data);
     int *id = (int *)((char *)data + 1);
-    printf("id: %d\n", *id);
     if(rbfm->openFile("Columns", fh) == -1)
         return -1;
     vector<string> colAttributes;
@@ -397,11 +387,9 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     void *colData = malloc(67);
     size_t offset = 1;
     vector<Attribute> attributes;
-    cout << "aqwe: " << RBFM_EOF << endl;
     RC ret = iterator2.getNextRecord(rid, colData);
     while(ret >= 0){
         RC ret = iterator2.getNextRecord(rid, colData);
-        cout << "asdasddddddd" << endl;
         int *nameLength = (int *)((char *)colData + offset);
         offset += 4;
         char *str = (char *)malloc(*nameLength + 1);
@@ -415,16 +403,12 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
         AttrLength *colLength = (AttrLength *)((char *)colData + offset);
         offset += 4;
         // int *colPos = (int *)((char *)colData + offset);
-        printf("colName: %s\n", columnName.c_str());
-        printf("nameLength: %d\n", *nameLength);
-        printf("colLength: %d\n", *colLength);
         Attribute a = {columnName, (AttrType)*colType, *colLength};
         attributes.push_back(a);
     }
     // free(data);
     // free(colData);
     attrs = attributes;
-    cout << "hello" << endl;
     return 0;
 }
 
@@ -543,7 +527,6 @@ RC RelationManager::scan(const string &tableName,
     if(rbfm->openFile(tableName, fh) == -1)
         return -1;
     vector<Attribute> attr;
-    cout << "It's scan" << endl;
     if(this->getAttributes(tableName, attr) == -1)
         return -1;
     RBFM_ScanIterator iterator;
