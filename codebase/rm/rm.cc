@@ -368,7 +368,7 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
         return -1;
     RID rid;
     void *data = malloc(5);
-    if(iterator.getNextRecord(rid, data) == -1)
+    if(iterator.getNextRecord(rid, data) == -2)
         return -1;
     int *id = (int *)((char *)data + 1);
     if(rbfm->openFile("Columns", fh) == -1)
