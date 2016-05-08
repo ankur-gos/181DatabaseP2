@@ -380,7 +380,7 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     colAttributes.push_back("column-type");
     colAttributes.push_back("column-length");
     colAttributes.push_back("column-position");
-    if(rbfm->scan(fh, getCatalogColumnAttributes(), "table-name", EQ_OP, (void *)id, colAttributes, iterator) == -1)
+    if(rbfm->scan(fh, getCatalogColumnAttributes(), "table-id", EQ_OP, (void *)id, colAttributes, iterator) == -1)
         return -1;
     // 67 is number of bytes per row in catalog column
     void *colData = malloc(67);
@@ -401,9 +401,9 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
         offset += 4;
         // int *colPos = (int *)((char *)colData + offset);
         Attribute a = {columnName, (AttrType)*colType, *colLength};
-        printf("colName: %s\n", columnName.c_str());
-        printf("nameLength: %d\n", *nameLength);
-        printf("colLength: %d\n", *colLength);
+        // printf("colName: %s\n", columnName.c_str());
+        // printf("nameLength: %d\n", *nameLength);
+        // printf("colLength: %d\n", *colLength);
         attributes.push_back(a);
     }
     free(data);

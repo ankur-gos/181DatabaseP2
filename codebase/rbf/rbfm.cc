@@ -687,8 +687,8 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     // fprintf(stderr, "NEP: %d\n",numberEntriesOnPage);
     // fprintf(stderr, "ERP: %d\n", entriesReadOnPage);
     void* temp_data = malloc(PAGE_SIZE);
-    memset(temp_data, 0, PAGE_SIZE);
     while(true){
+        memset(temp_data, 0, PAGE_SIZE);
         if(numberEntriesOnPage == entriesReadOnPage){
           currentPage++;
           if(currentPage>(fileHandle.getNumberOfPages()-1)){
@@ -726,6 +726,8 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
         }
         if(_rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data) == -1)
           return -1;
+
+        printf("%s\n", (char *)temp_data);
 
         int comparison = 0;    
         if(recordDescriptor[conditional_index].type == TypeVarChar){
