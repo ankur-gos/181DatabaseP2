@@ -567,7 +567,7 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle,
                                         return -1;
                                     SlotDirectoryHeader header = _rbf_manager->getSlotDirectoryHeader(page);
                                     free(page);
-                                    rbfm_ScanIterator.entriesReadOnPage=header.recordEntriesNumber;
+                                    rbfm_ScanIterator.numberEntriesOnPage = header.recordEntriesNumber;
                                     return 0;
 }
 
@@ -686,7 +686,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     void* page = malloc(PAGE_SIZE);
     fprintf(stderr, "NEP: %d\n",numberEntriesOnPage);
     fprintf(stderr, "ERP: %d\n", entriesReadOnPage);
-    if(numberEntriesOnPage == entriesReadOnPage){
+    if(numberEntriesOnPage >= entriesReadOnPage){
       currentPage++;
       if(currentPage>(fileHandle.getNumberOfPages()-1)){
         return -1; //EOF
