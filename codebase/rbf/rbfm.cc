@@ -477,6 +477,9 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     //read in record size;
     //read in null indicator
     //check if attr is null; what do we do if it is null?
+    for(int i = 0; i < recordDescriptor.size(); i++){
+        cout << "Record descriptor name: "<< recordDescriptor[i].name << endl;
+    }
     int index;
     AttrType type;
     void * page = malloc(PAGE_SIZE);
@@ -538,6 +541,9 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     memcpy((void *)((char*) data+(size_t)data_offset), (void *)((char*)page + attr_offset), fieldSize);
     //read page given by filehandle
     //getSlotE
+    for(int i = 0; i < recordDescriptor.size(); i++){
+        cout << "Record descriptor name22222: "<< recordDescriptor[i].name << endl;
+    }
     return 0;
 }
 
@@ -716,7 +722,6 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
             break;
           }
         }
-
         int conditional_index = 0;
         for(int i = 0; i < recordDescriptor.size(); i++){
           if(recordDescriptor[i].name == conditionAttribute){
@@ -724,10 +729,15 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
             break;
           }
         }
+        // for(int i = 0; i < recordDescriptor.size(); i++){
+        //     cout<<"Record Descriptor name: "<<recordDescriptor[i].name<<endl;
+        // }
+        // if(recordDescriptor.size() != 0){
+        //     cout<<"Record Descriptor length: " << recordDescriptor.size()<<endl;
+        // }
         if(_rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data) == -1)
           return -1;
 
-        printf("%s\n", (char *)temp_data);
 
         int comparison = 0;    
         if(recordDescriptor[conditional_index].type == TypeVarChar){
@@ -762,7 +772,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
         if(compOp == LE_OP && comparison >= 0){
           continue;
         }
-        if(compOp == EQ_OP && comparison <= 0){
+        if(compOp == GE_OP && comparison <= 0){
           continue;
         }
         break;

@@ -380,13 +380,14 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     colAttributes.push_back("column-type");
     colAttributes.push_back("column-length");
     colAttributes.push_back("column-position");
-    if(rbfm->scan(fh, getCatalogColumnAttributes(), "table-id", EQ_OP, (void *)id, colAttributes, iterator) == -1)
+    RBFM_ScanIterator iterator2;
+    if(rbfm->scan(fh, getCatalogColumnAttributes(), "table-id", EQ_OP, (void *)id, colAttributes, iterator2) == -1)
         return -1;
     // 67 is number of bytes per row in catalog column
     void *colData = malloc(67);
     size_t offset = 1;
     vector<Attribute> attributes;
-    while(iterator.getNextRecord(rid, colData) != RBFM_EOF){
+    while(iterator2.getNextRecord(rid, colData) != RBFM_EOF){
         int *nameLength = (int *)((char *)colData + offset);
         offset += 4;
         char *str = (char *)malloc(*nameLength + 1);
