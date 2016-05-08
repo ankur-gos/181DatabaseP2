@@ -28,7 +28,7 @@ public:
     if(iterator == NULL)
       return -1;
     RC rc = iterator->getNextRecord(rid, data);
-    if(rc == RBFM_EOF)
+    if(rc >= 0)
       return RM_EOF;
     return 0;
   };

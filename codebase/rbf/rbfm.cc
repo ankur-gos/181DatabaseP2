@@ -477,9 +477,6 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     //read in record size;
     //read in null indicator
     //check if attr is null; what do we do if it is null?
-    for(int i = 0; i < recordDescriptor.size(); i++){
-        cout << "Record descriptor name: "<< recordDescriptor[i].name << endl;
-    }
     int index;
     AttrType type;
     void * page = malloc(PAGE_SIZE);
@@ -491,9 +488,16 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
         }
     }
 
-    SlotDirectoryRecordEntry sdre = _rbf_manager->getSlotDirectoryRecordEntry(page, rid.pageNum);
+    cout << rid.slotNum << endl;
+
+    fileHandle.readPage(rid.pageNum, page);
+
+    SlotDirectoryRecordEntry sdre = _rbf_manager->getSlotDirectoryRecordEntry(page, rid.slotNum);
+
+    cout << "sdre len: " << sdre.length << endl;
 
     int offset_to_record = sdre.offset;
+    cout << "Offset_to_record" << offset_to_record << endl;
 
     int nullIndicatorSize = _rbf_manager->getNullIndicatorSize(recordDescriptor.size());
 
@@ -521,9 +525,16 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     //I'm assuming offset is relative to start of record :) 
     //The offset definitely does point to the end of the field
     ColumnOffset startPointer; //what if index == 0?
-    memcpy(&startPointer, (char*)page + offset_to_field_dir + (index-1) * sizeof(ColumnOffset), sizeof(ColumnOffset));
+    if(index == 0){
+        int field_dir_len = recordDescriptor.size()*sizeof(ColumnOffset);
+        startPointer = sizeof(RecordLength) + nullIndicatorSize + field_dir_len;
+    } else{
+        memcpy(&startPointer, (char*)page + offset_to_field_dir + (index-1) * sizeof(ColumnOffset), sizeof(ColumnOffset));
+    }
+    cout << "Start Pointer: "<< startPointer <<endl;
     ColumnOffset endPointer;
     memcpy(&endPointer, (char*)page + offset_to_field_dir + index * sizeof(ColumnOffset), sizeof(ColumnOffset));
+    cout<<"End Pointer: "<<endPointer<<endl;
 
     // rec_offset keeps track of start of column, so end-start = total size
     uint32_t fieldSize = endPointer - startPointer;
@@ -541,9 +552,6 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     memcpy((void *)((char*) data+(size_t)data_offset), (void *)((char*)page + attr_offset), fieldSize);
     //read page given by filehandle
     //getSlotE
-    for(int i = 0; i < recordDescriptor.size(); i++){
-        cout << "Record descriptor name22222: "<< recordDescriptor[i].name << endl;
-    }
     return 0;
 }
 
@@ -689,15 +697,28 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     //read all fields specified
     //set null bytes
     //if needed increment page, reset page data
+        
+          cout << "NOP: " << fileHandle.getNumberOfPages() << endl;
+          cout << "currentPage: " << currentPage << endl;
+        if(currentPage >= (fileHandle.getNumberOfPages())){
+            cout << "red" << endl;
+            return -1; //EOF
+  }
     void* page = malloc(PAGE_SIZE);
     // fprintf(stderr, "NEP: %d\n",numberEntriesOnPage);
     // fprintf(stderr, "ERP: %d\n", entriesReadOnPage);
     void* temp_data = malloc(PAGE_SIZE);
     while(true){
         memset(temp_data, 0, PAGE_SIZE);
+        cout << "NEP: " << numberEntriesOnPage << endl;
+        cout << "ERP: " << entriesReadOnPage << endl;
         if(numberEntriesOnPage == entriesReadOnPage){
+            cout << "asdas" << endl;
           currentPage++;
-          if(currentPage>(fileHandle.getNumberOfPages()-1)){
+          cout << "NOP: " << fileHandle.getNumberOfPages() << endl;
+          cout << "currentPage: " << currentPage << endl;
+          if(currentPage >= (fileHandle.getNumberOfPages())){
+            cout << "red" << endl;
             return -1; //EOF
           }
           if(fileHandle.readPage(currentPage, page) == -1)
@@ -712,9 +733,13 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
           rid.slotNum = nextSlotNum;
           rid.pageNum = currentPage;
 
+        cout << "SLOT NUMBER: " << rid.slotNum << endl;
           SlotDirectoryRecordEntry entry = _rbfm->getSlotDirectoryRecordEntry(page, rid.slotNum);
-          if(entry.length == 0 && entry.offset == 0){
+          cout << "ENtry offset " << entry.offset << endl;
+          cout << "Entry length " << entry.length << endl;
+          if(entry.length == 0 /*&& entry.offset == 0*/){
             //tombstone, not real record
+            cout << "Hit1" << endl;
             nextSlotNum++;
           }else{
             entriesReadOnPage++;
@@ -735,6 +760,10 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
         // if(recordDescriptor.size() != 0){
         //     cout<<"Record Descriptor length: " << recordDescriptor.size()<<endl;
         // }
+        cout << "Rid slot number: " << rid.slotNum << endl;
+        SlotDirectoryRecordEntry entry = _rbfm->getSlotDirectoryRecordEntry(page, rid.slotNum);
+          cout << "ENtry offset1 " << entry.offset << endl;
+          cout << "Entry length1 " << entry.length << endl;
         if(_rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data) == -1)
           return -1;
 
@@ -777,6 +806,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
         }
         break;
     }
+    cout<<"Match found\n"<<endl;
     int nullSize = _rbfm->getNullIndicatorSize(attributeNames.size());
     void * nullBytes = malloc(nullSize);
 
@@ -786,7 +816,7 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
       int temp_data_offset = 1; //null indicator will be 1 bytes
       //memset temp_data 0
       _rbfm->readAttribute(fileHandle, recordDescriptor, rid, attributeNames[i], temp_data);
-
+      cout<<"Temp"<<*(int *)temp_data<<endl;
       if (_rbfm->fieldIsNull((char *)temp_data, 0)){
         int indicatorIndex = (i+1) / CHAR_BIT;
         int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
