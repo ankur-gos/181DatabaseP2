@@ -20,6 +20,7 @@ void catCDSetup(void* data, int tableID, string colName, int colType, int colLen
 RelationManager::RelationManager()
 {
   	catExists = 0;
+	nextTableID = 1;
 
 	tTableRID 	= NULL;
 	cTableIdRID	= NULL;
@@ -141,7 +142,8 @@ RC RelationManager::createCatalog()
 	/*use rbf here to create catalog file*/
 	rbf->createFile(TABLES_NAME);
 	rbf->openFile(TABLES_NAME, tablesFH);
-	
+	nextTableID++;	
+
 	catTDSetup(data, 1, TABLES_NAME);
 	rbf->insertRecord(tablesFH, tablesAttr, data, *tTableRID);
 	
@@ -160,7 +162,8 @@ RC RelationManager::createCatalog()
     	/*use rbf here to create catalog file*/
 	rbf->createFile(COL_NAME);
 	rbf->openFile(COL_NAME, colFH);
-	
+	nextTableID++;	
+
 	//add the columns of "Tables" and "Columns" to "Columns"	
 	catCDSetup(data, 1, "table-id", TypeInt, 4, 1);
 	rbf->insertRecord(colFH, colAttr, data, *cTableIdRID);
@@ -200,6 +203,7 @@ RC RelationManager::deleteCatalog()
 	RecordBasedFileManager* rbf = RecordBasedFileManager::instance();
 
 	catExists = 0;	//begin by saying the catalog is gone
+	modCat = 1;
 	
 	//close the filehandles
 	rbf->closeFile(colFH);	
@@ -233,19 +237,92 @@ RC RelationManager::deleteCatalog()
 	cColNameRID	= NULL;	
 	cColTypeRID	= NULL;
 	cColLengthRID	= NULL;
-	cColPosRID	= NULL;		
+	cColPosRID	= NULL;	
+
+	modCat = 0;	
 	return 0;
 }
 
 RC RelationManager::createTable(const string &tableName, const vector<Attribute> &attrs)
 {
-    return -1;
+	FileHandle fh;
+	RecordBasedFileManager *rbf = RecordBasedFileManager::instance();
+
+	void* data = malloc(1024);
+	void* value = malloc(50+1);
+	RID throwawayRID;
+
+	RM_ScanIterator rmsi;
+	vector<string> tableID = {"table-id"};
+	strcpy((char*)value, tableName.c_str());
+	scan("Tables", "table-name", EQ_OP, value, tableID, rmsi);	
+    	if(rmsi.getNextTuple(throwawayRID, data) != RM_EOF)
+	{
+		return 1;	//return 1 if there's already a table with that name
+	}
+
+	rbf->createFile(tableName);	
+	
+	//insert into table into "Tables"
+	catTDSetup(data, nextTableID, tableName); 
+	modCat = 1;
+	insertTuple("Tables", data, throwawayRID);
+	modCat = 0;
+	//insert columns into "Columns"
+	for(int i = 0; i<attrs.size(); i++)
+	{
+		catCDSetup( data, nextTableID, attrs[i].name, attrs[i].type, attrs[i].length, i+1);
+		modCat = 1;
+		insertTuple("Columns", data, throwawayRID);
+		modCat = 0;
+	}
+		
+	free(data);
+	free(value);
+	nextTableID++;
+	return 0;
 }
 
 RC RelationManager::deleteTable(const string &tableName)
-{
-    
-    return -1;
+{	
+	RID rid;
+	RM_ScanIterator rmsi;
+	vector<string> table = {"table-id", "file-name"};
+	void* data = malloc(1024);
+	void* value = malloc(50+1);
+	string fileName;
+
+	strcpy((char*) value, tableName.c_str());
+	//delete entries in Tables
+	modCat = 1;
+	scan("Tables", "table-name", EQ_OP, value, table, rmsi);	
+    	while(rmsi.getNextTuple(rid, data) != RM_EOF)
+	{
+		*(int*)value = *(int*)((char*)data+1);
+		deleteTuple(tableName, rid);
+		int length = *(int*)((char*)data+5);
+		char* fName = (char*)malloc(50 + 1);
+		memcpy((void*)fName, (void*)((char*)data+9), length);
+		*(fName+length) = '\0';
+		fileName = fName;
+		free(fName);
+	}
+
+	RecordBasedFileManager* rbf = RecordBasedFileManager::instance();
+	rbf->destroyFile(fileName);
+	
+	vector<string> columns = {"table-id"};
+	//Delete Entries in columns
+	scan("Columns", "table-id", EQ_OP, value, columns, rmsi);	
+    	while(rmsi.getNextTuple(rid, data) != RM_EOF)
+	{
+		deleteTuple(tableName, rid);
+	}
+	modCat = 0;	
+
+	free(data);	
+	free(value);
+	return 0;
 }
 
 vector<Attribute> getCatalogTableAttributes(){

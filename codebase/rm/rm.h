@@ -97,6 +97,7 @@ private:
 	RID* cTableIdRID;	//columns table-id rid		//
 	RID* cTableNameRID;	//columns table-name rid	//
 	RID* cFileNameRID;	//columns file-name rid 	//
+	int  nextTableID;	//stores value of next TableID	//
 								//
 	FileHandle colFH;	//"Columns" filehandle		//	  					  
 	RID* tColRID;		//tables Columns RID    	//	  
