@@ -385,19 +385,19 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
     size_t offset = 1;
     vector<Attribute> attributes;
     while(iterator.getNextRecord(rid, colData) != RBFM_EOF){
-        int *nameLength = (int *)((char *)data + offset);
+        int *nameLength = (int *)((char *)colData + offset);
         offset += 4;
         char *str = (char *)malloc(*nameLength + 1);
-        memcpy((void *)str, (void *)((char *)data + offset), *nameLength);
+        memcpy((void *)str, (void *)((char *)colData + offset), *nameLength);
         *(str + *nameLength) = '\0';
         string columnName = str;
         free(str);
         offset += *nameLength;
-        int *colType = (int *)((char *)data + offset);
+        int *colType = (int *)((char *)colData + offset);
         offset += 4;
-        AttrLength *colLength = (AttrLength *)((char *)data + offset);
+        AttrLength *colLength = (AttrLength *)((char *)colData + offset);
         offset += 4;
-        // int *colPos = (int *)((char *)data + offset);
+        // int *colPos = (int *)((char *)colData + offset);
         Attribute a = {columnName, (AttrType)*colType, *colLength};
         attributes.push_back(a);
     }
