@@ -364,12 +364,14 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
 
     vector<string> s;
     s.push_back("table-id");
+    printf("tableName: %s\n", tableName.c_str());
     if(rbfm->scan(fh, getCatalogTableAttributes(), "table-name", EQ_OP, (const void *)tableName.c_str(), s, iterator) == -1)
         return -1;
     RID rid;
     void *data = malloc(5);
     if(iterator.getNextRecord(rid, data) == -2)
         return -1;
+    printf("%d\n", *(int *)data);
     int *id = (int *)((char *)data + 1);
     if(rbfm->openFile("Columns", fh) == -1)
         return -1;
@@ -399,6 +401,9 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
         offset += 4;
         // int *colPos = (int *)((char *)colData + offset);
         Attribute a = {columnName, (AttrType)*colType, *colLength};
+        printf("colName: %s\n", columnName.c_str());
+        printf("nameLength: %d\n", *nameLength);
+        printf("colLength: %d\n", *colLength);
         attributes.push_back(a);
     }
     free(data);

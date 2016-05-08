@@ -686,81 +686,84 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     void* page = malloc(PAGE_SIZE);
     // fprintf(stderr, "NEP: %d\n",numberEntriesOnPage);
     // fprintf(stderr, "ERP: %d\n", entriesReadOnPage);
-    if(numberEntriesOnPage >= entriesReadOnPage){
-      currentPage++;
-      if(currentPage>(fileHandle.getNumberOfPages()-1)){
-        return -1; //EOF
-      }
-      if(fileHandle.readPage(currentPage, page) == -1)
-        return -1;
-      SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
-      numberEntriesOnPage=header.recordEntriesNumber;//what if its 0
-      nextSlotNum=0;
-      entriesReadOnPage=0;
-    }
-    while(true){
-      //find non tombstoned rid
-      rid.slotNum = nextSlotNum;
-      rid.pageNum = currentPage;
-
-      SlotDirectoryRecordEntry entry = _rbfm->getSlotDirectoryRecordEntry(page, rid.slotNum);
-      if(entry.length == 0 && entry.offset == 0){
-        //tombstone, not real record
-        nextSlotNum++;
-      }else{
-        entriesReadOnPage++;
-        nextSlotNum++;
-        break;
-      }
-    }
-
-    int conditional_index = 0;
-    for(int i = 0; i< recordDescriptor.size(); i++){
-      if(recordDescriptor[i].name == conditionAttribute){
-        conditional_index = i;
-        break;
-      }
-    }
     void* temp_data = malloc(PAGE_SIZE);
     memset(temp_data, 0, PAGE_SIZE);
-    if(_rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data) == -1)
-      return -1;
+    while(true){
+        if(numberEntriesOnPage == entriesReadOnPage){
+          currentPage++;
+          if(currentPage>(fileHandle.getNumberOfPages()-1)){
+            return -1; //EOF
+          }
+          if(fileHandle.readPage(currentPage, page) == -1)
+            return -1;
+          SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
+          numberEntriesOnPage = header.recordEntriesNumber;//what if its 0
+          nextSlotNum=0;
+          entriesReadOnPage=0;
+        }
+        while(true){
+          //find non tombstoned rid
+          rid.slotNum = nextSlotNum;
+          rid.pageNum = currentPage;
 
-    int comparison = 0;    
-    if(recordDescriptor[conditional_index].type == TypeVarChar){
-      int * recordSize = (int*)malloc(sizeof(int));
-      memcpy(recordSize, (char*)temp_data+1, sizeof(int));
-      char * record = (char *) malloc((*recordSize)+1);
-      //set 0 to insure it is null terminated
-      memset(record, 0, *recordSize+1);
-      memcpy(record, (char*)temp_data+1+sizeof(int), *recordSize);
-      comparison = strcmp(record, (char*)value);
+          SlotDirectoryRecordEntry entry = _rbfm->getSlotDirectoryRecordEntry(page, rid.slotNum);
+          if(entry.length == 0 && entry.offset == 0){
+            //tombstone, not real record
+            nextSlotNum++;
+          }else{
+            entriesReadOnPage++;
+            nextSlotNum++;
+            break;
+          }
+        }
 
-    }else if(recordDescriptor[conditional_index].type == TypeInt){
-      int* record = (int *) malloc(sizeof(int));
-      memcpy(record, (char*)temp_data+1, sizeof(int));
-      if(*record < *(int*) value){
-        comparison = -1;
-      }else if(*record > *(int*) value){
-        comparison = 1;
-      }
-    }else{
-      float* record = (float *) malloc(sizeof(float));
-      memcpy(record, (char*)temp_data+1, sizeof(float));
-      if(*record < *(float*) value){
-        comparison = -1;
-      }else if(*record > *(float*) value){
-        comparison = 1;
-      }
-    }
-    if(compOp == EQ_OP && comparison != 0){
-      getNextRecord(rid, data);
-    }
-    if(compOp == LE_OP && comparison >= 0){
-      getNextRecord(rid, data);
-    }
-    if(compOp == EQ_OP && comparison <= 0){
-      getNextRecord(rid, data);
+        int conditional_index = 0;
+        for(int i = 0; i < recordDescriptor.size(); i++){
+          if(recordDescriptor[i].name == conditionAttribute){
+            conditional_index = i;
+            break;
+          }
+        }
+        if(_rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data) == -1)
+          return -1;
+
+        int comparison = 0;    
+        if(recordDescriptor[conditional_index].type == TypeVarChar){
+          int * recordSize = (int*)malloc(sizeof(int));
+          memcpy(recordSize, (char*)temp_data+1, sizeof(int));
+          char * record = (char *) malloc((*recordSize)+1);
+          //set 0 to insure it is null terminated
+          memset(record, '\0', *recordSize+1);
+          memcpy(record, (char*)temp_data+1+sizeof(int), *recordSize);
+          comparison = strcmp(record, (char*)value);
+
+        }else if(recordDescriptor[conditional_index].type == TypeInt){
+          int* record = (int *) malloc(sizeof(int));
+          memcpy(record, (char*)temp_data+1, sizeof(int));
+          if(*record < *(int*) value){
+            comparison = -1;
+          }else if(*record > *(int*) value){
+            comparison = 1;
+          }
+        }else{
+          float* record = (float *) malloc(sizeof(float));
+          memcpy(record, (char*)temp_data+1, sizeof(float));
+          if(*record < *(float*) value){
+            comparison = -1;
+          }else if(*record > *(float*) value){
+            comparison = 1;
+          }
+        }
+        if(compOp == EQ_OP && comparison != 0){
+          continue;
+        }
+        if(compOp == LE_OP && comparison >= 0){
+          continue;
+        }
+        if(compOp == EQ_OP && comparison <= 0){
+          continue;
+        }
+        break;
     }
     int nullSize = _rbfm->getNullIndicatorSize(attributeNames.size());
     void * nullBytes = malloc(nullSize);
