@@ -98,6 +98,9 @@ int RBFTest_8(RecordBasedFileManager *rbfm) {
         free(returnedData);
         return -1;
     }
+    memset(returnedData, 0, 100);
+    rc = rbfm->readAttribute(fileHandle, recordDescriptor, rid, "Age", returnedData);
+    assert(rc == success && "Reading attribute should not fail.");
 
     rc = rbfm->deleteRecord(fileHandle, recordDescriptor, rid);
     assert(rc == success && "Deleting a record should not fail.");

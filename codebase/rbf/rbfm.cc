@@ -477,7 +477,6 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
     //read in record size;
     //read in null indicator
     //check if attr is null; what do we do if it is null?
-    //
     int index;
     AttrType type;
     void * page = malloc(PAGE_SIZE);
@@ -514,7 +513,7 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
 
     int offset_to_null_indicator = offset_to_record + sizeof(RecordLength);
 
-    int offset_to_field_dir = offset_to_null_indicator + recordNullIndicatorSize;
+    int offset_to_field_dir = offset_to_null_indicator + nullIndicatorSize;
 
     //I'm assuming offset is relative to start of record :) 
     //The offset definitely does point to the end of the field
@@ -534,7 +533,9 @@ RC RecordBasedFileManager::readAttribute(FileHandle &fileHandle, const vector<At
         data_offset += VARCHAR_LENGTH_SIZE;
     }
     //
-    memcpy((char*) data+data_offset, (char*)page + startPointer, fieldSize);
+    int field_dir_len = recordDescriptor.size()*sizeof(ColumnOffset);
+    int attr_offset = offset_to_record + startPointer;
+    memcpy((void *)((char*) data+(size_t)data_offset), (void *)((char*)page + attr_offset), fieldSize);
     //read page given by filehandle
     //getSlotE
     return 0;
@@ -559,6 +560,14 @@ RC RecordBasedFileManager::scan(FileHandle &fileHandle,
 
                                     rbfm_ScanIterator.attributeNames = attributeNames;
                                     rbfm_ScanIterator._rbfm = _rbf_manager;
+
+                                    void* page = malloc(PAGE_SIZE);
+
+                                    if(fileHandle.readPage(0, page) == -1)
+                                        return -1;
+                                    SlotDirectoryHeader header = _rbf_manager->getSlotDirectoryHeader(page);
+                                    free(page);
+                                    rbfm_ScanIterator.numberEntriesOnPage = header.recordEntriesNumber;
                                     return 0;
 }
 
@@ -675,9 +684,11 @@ RC RBFM_ScanIterator::getNextRecord(RID &rid, void *data)
     //set null bytes
     //if needed increment page, reset page data
     void* page = malloc(PAGE_SIZE);
-    if(numberEntriesOnPage == entriesReadOnPage){
+    fprintf(stderr, "NEP: %d\n",numberEntriesOnPage);
+    fprintf(stderr, "ERP: %d\n", entriesReadOnPage);
+    if(numberEntriesOnPage >= entriesReadOnPage){
       currentPage++;
-      if(currentPage>fileHandle.getNumberOfPages()){
+      if(currentPage>(fileHandle.getNumberOfPages()-1)){
         return -1; //EOF
       }
       if(fileHandle.readPage(currentPage, page) == -1)
