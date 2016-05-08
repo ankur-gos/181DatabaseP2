@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 #include <climits>
+#include <stdlib.h>
+#include <cstdlib>
 
 #include "../rbf/pfm.h"
 
@@ -92,20 +94,7 @@ The scan iterator is NOT required to be implemented for the part 1 of the projec
 //    process the data;
 //  }
 //  rbfmScanIterator.close();
-
-class RBFM_ScanIterator {
-public:
-  RBFM_ScanIterator() {};
-  ~RBFM_ScanIterator() {};
-
-  // Never keep the results in the memory. When getNextRecord() is called, 
-  // a satisfying record needs to be fetched from the file.
-  // "data" follows the same format as RecordBasedFileManager::insertRecord().
-  RC getNextRecord(RID &rid, void *data) { return RBFM_EOF; };
-  RC close() { return -1; };
-};
-
-
+class RBFM_ScanIterator;
 class RecordBasedFileManager
 {
 public:
@@ -163,6 +152,10 @@ IMPORTANT, PLEASE READ: All methods below this comment (other than the construct
       const vector<string> &attributeNames, // a list of projected attributes
       RBFM_ScanIterator &rbfm_ScanIterator);
 
+  SlotDirectoryRecordEntry getSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber);
+  SlotDirectoryHeader getSlotDirectoryHeader(void * page);
+  int getNullIndicatorSize(int fieldCount);
+  bool fieldIsNull(char *nullIndicator, int i);
 public:
 
 protected:
@@ -177,20 +170,177 @@ private:
 
   void newRecordBasedPage(void * page);
 
-  SlotDirectoryHeader getSlotDirectoryHeader(void * page);
   void setSlotDirectoryHeader(void * page, SlotDirectoryHeader slotHeader);
 
-  SlotDirectoryRecordEntry getSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber);
   void setSlotDirectoryRecordEntry(void * page, unsigned recordEntryNumber, SlotDirectoryRecordEntry recordEntry);
 
   unsigned getPageFreeSpaceSize(void * page);
   unsigned getRecordSize(const vector<Attribute> &recordDescriptor, const void *data);
 
-  int getNullIndicatorSize(int fieldCount);
-  bool fieldIsNull(char *nullIndicator, int i);
-
   void setRecordAtOffset(void *page, unsigned offset, const vector<Attribute> &recordDescriptor, const void *data);
   void getRecordAtOffset(void *record, unsigned offset, const vector<Attribute> &recordDescriptor, void *data);
+};
+class RBFM_ScanIterator {
+public:
+  RBFM_ScanIterator(){
+
+    currentPage=0;
+    
+    void* page = malloc(PAGE_SIZE);
+    fileHandle.readPage(currentPage, page);
+    SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
+    free(page);
+
+    entriesReadOnPage=header.recordEntriesNumber;
+    nextSlotNum=0;
+  };
+  ~RBFM_ScanIterator() {
+  };
+  FileHandle fileHandle;
+  vector<Attribute> recordDescriptor;
+  string conditionAttribute;
+  CompOp compOp;    
+  const void *value;                 
+  vector<string> attributeNames;
+  RecordBasedFileManager* _rbfm;
+  int currentPage;
+  int nextSlotNum;
+  int numberEntriesOnPage;
+  int entriesReadOnPage;
+  // Never keep the results in the memory. When getNextRecord() is called, 
+  // a satisfying record needs to be fetched from the file.
+  // "data" follows the same format as RecordBasedFileManager::insertRecord().
+  RC getNextRecord(RID &rid, void *data) {
+    //determine what rid is next
+    //see if record at that rid satisfies conditional
+    //read all fields specified
+    //set null bytes
+    //if needed increment page, reset page data
+    void* page = malloc(PAGE_SIZE);
+    if(numberEntriesOnPage == entriesReadOnPage){
+      currentPage++;
+      if(currentPage>fileHandle.getNumberOfPages()){
+        return -1; //EOF
+      }
+      fileHandle.readPage(currentPage, page);
+      SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
+      numberEntriesOnPage=header.recordEntriesNumber;//what if its 0
+      nextSlotNum=0;
+      entriesReadOnPage=0;
+    }
+    while(true){
+      //find non tombstoned rid
+      rid.slotNum = nextSlotNum;
+      rid.pageNum = currentPage;
+
+      SlotDirectoryRecordEntry entry = _rbfm->getSlotDirectoryRecordEntry(page, rid.slotNum);
+      if(entry.length == 0 && entry.offset == 0){
+        //tombstone, not real record
+        nextSlotNum++;
+      }else{
+        entriesReadOnPage++;
+        nextSlotNum++;
+        break;
+      }
+    }
+
+    int conditional_index = 0;
+    for(int i = 0; i< recordDescriptor.size(); i++){
+      if(recordDescriptor[i].name == conditionAttribute){
+        conditional_index = i;
+        break;
+      }
+    }
+    void* temp_data = malloc(PAGE_SIZE);
+    memset(temp_data, 0, PAGE_SIZE);
+    _rbfm->readAttribute(fileHandle, recordDescriptor, rid, conditionAttribute, temp_data);
+
+    int comparison = 0;    
+    if(recordDescriptor[conditional_index].type == TypeVarChar){
+      int * recordSize = (int*)malloc(sizeof(int));
+      memcpy(recordSize, (char*)temp_data+1, sizeof(int));
+      char * record = (char *) malloc((*recordSize)+1);
+      //set 0 to insure it is null terminated
+      memset(record, 0, *recordSize+1);
+      memcpy(record, (char*)temp_data+1+sizeof(int), *recordSize);
+      comparison = strcmp(record, (char*)value);
+
+    }else if(recordDescriptor[conditional_index].type == TypeInt){
+      int* record = (int *) malloc(sizeof(int));
+      memcpy(record, (char*)temp_data+1, sizeof(int));
+      if(*record < *(int*) value){
+        comparison = -1;
+      }else if(*record > *(int*) value){
+        comparison = 1;
+      }
+    }else{
+      float* record = (float *) malloc(sizeof(float));
+      memcpy(record, (char*)temp_data+1, sizeof(float));
+      if(*record < *(float*) value){
+        comparison = -1;
+      }else if(*record > *(float*) value){
+        comparison = 1;
+      }
+    }
+    if(compOp == EQ_OP && comparison != 0){
+      getNextRecord(rid, data);
+    }
+    if(compOp == LE_OP && comparison >= 0){
+      getNextRecord(rid, data);
+    }
+    if(compOp == EQ_OP && comparison <= 0){
+      getNextRecord(rid, data);
+    }
+    int nullSize = _rbfm->getNullIndicatorSize(attributeNames.size());
+    void * nullBytes = malloc(nullSize);
+
+    int offset_to_data = nullSize;
+
+    for(int i = 0; i<attributeNames.size(); i++){
+      int temp_data_offset = 1; //null indicator will be 1 bytes
+      //memset temp_data 0
+      _rbfm->readAttribute(fileHandle, recordDescriptor, rid, attributeNames[i], temp_data);
+
+      if (_rbfm->fieldIsNull((char *)temp_data, 0)){
+        int indicatorIndex = (i+1) / CHAR_BIT;
+        int indicatorMask  = 1 << (CHAR_BIT - 1 - (i % CHAR_BIT));
+        ((char *)nullBytes)[indicatorIndex] |= indicatorMask;
+      }else{
+        int attr_index = 0;
+        for(int j = 0; j< recordDescriptor.size(); j++){
+          if(recordDescriptor[j].name == attributeNames[i]){
+            attr_index = j;
+            break;
+          }
+        }
+        //get size of field
+        //copy into data+offsettodata
+        //edit offset
+        memcpy((char*) data + offset_to_data, (char*)temp_data+temp_data_offset, VARCHAR_LENGTH_SIZE);
+
+        if (recordDescriptor[attr_index].type == TypeVarChar)
+        {
+            int* field_size = (int*)malloc(sizeof(int));
+            memcpy(field_size, (char*)temp_data+temp_data_offset, VARCHAR_LENGTH_SIZE);
+
+            offset_to_data += VARCHAR_LENGTH_SIZE;
+            temp_data_offset += VARCHAR_LENGTH_SIZE;
+            memcpy((char*) data + offset_to_data, (char*)temp_data+temp_data_offset, *field_size);
+        }
+      }
+      free(temp_data);
+    }
+    //get attribute pointed at by conditionAttribute
+    //maybe no call to readRecord? Just sequential calls to readAttribute. 
+    //we have to build up the data correctly though.
+    //for nulls: readAttr will indicate null
+    //for all nulls, generate null bytes
+    //add null bytes + rest of records IN PROPER ORDER 
+    //point data to new data
+    free(page);
+    return 0;
+  };
+  RC close() { return -1; };
 };
 
 #endif

@@ -4,7 +4,6 @@
 
 #include <string>
 #include <vector>
-
 #include "../rbf/rbfm.h"
 
 using namespace std;
@@ -14,12 +13,32 @@ using namespace std;
 // RM_ScanIterator is an iteratr to go through tuples
 class RM_ScanIterator {
 public:
-  RM_ScanIterator() {};
+  RM_ScanIterator() 
+                  {
+  };
+
   ~RM_ScanIterator() {};
 
+  FileHandle fh;
+  vector<Attribute> *recordDescriptor;
+  vector<string> *conditionAttribute;
+  CompOp compOp;
+  void *value;
+  vector<string> attributeNames;
+  RID *rid;
+
   // "data" follows the same format as RelationManager::insertTuple()
-  RC getNextTuple(RID &rid, void *data) { return RM_EOF; };
-  RC close() { return -1; };
+  RC getNextTuple(RID &rid, void *data) {
+
+    // RC rc = rbfm_ScanIterator->getNextRecord(rid, data);
+    //data now points to correct attribute data. How does this convert to tuple?
+    return 0;
+  };
+
+  RC close() {
+   return -1; 
+  };
+
 };
 
 

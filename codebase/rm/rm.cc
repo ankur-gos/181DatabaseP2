@@ -1,4 +1,4 @@
-
+#include "../rbf/rbfm.h"
 #include "rm.h"
 #include <stdlib.h>
 #include <cstring>
@@ -354,7 +354,7 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
         offset += *nameLength;
         int *colType = (int *)((char *)data + offset);
         offset += 4;
-        int *colLength = (int *)((char *)data + offset);
+        AttrLength *colLength = (AttrLength *)((char *)data + offset);
         offset += 4;
         // int *colPos = (int *)((char *)data + offset);
         Attribute a = {columnName, (AttrType)*colType, *colLength};
@@ -368,6 +368,9 @@ RC RelationManager::getAttributes(const string &tableName, vector<Attribute> &at
 
 RC RelationManager::insertTuple(const string &tableName, const void *data, RID &rid)
 {
+    if(this->modCat != 1 && (tableName == "Tables" || tableName == "Columns"))
+        return -1;
+
     FileHandle fh;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     RC err;
@@ -386,6 +389,8 @@ RC RelationManager::insertTuple(const string &tableName, const void *data, RID &
 
 RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 {
+    if(this->modCat != 1 && (tableName == "Tables" || tableName == "Columns"))
+        return -1;
     FileHandle fh;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     RC err;
@@ -404,6 +409,8 @@ RC RelationManager::deleteTuple(const string &tableName, const RID &rid)
 
 RC RelationManager::updateTuple(const string &tableName, const void *data, const RID &rid)
 {
+    if(this->modCat != 1 && (tableName == "Tables" || tableName == "Columns"))
+        return -1;
     FileHandle fh;
     RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
     RC err;
@@ -469,7 +476,17 @@ RC RelationManager::scan(const string &tableName,
       const vector<string> &attributeNames,
       RM_ScanIterator &rm_ScanIterator)
 {
-    return -1;
+    FileHandle fh;
+    RecordBasedFileManager *rbfm = RecordBasedFileManager::instance();
+    if(rbfm->openFile(tableName, fh) == -1)
+        return -1;
+    vector<Attribute> attr;
+    if(this->getAttributes(tableName, attr) == -1)
+        return -1;
+    // RBFM_ScanIterator iterator;
+    // if(rbfm->scan(fh, attr, compOp, value, attributeNames, iterator) == -1)
+    //     return -1;
+    return 0;
 }
 
 
