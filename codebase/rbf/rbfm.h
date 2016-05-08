@@ -185,13 +185,6 @@ public:
   RBFM_ScanIterator(){
 
     currentPage=0;
-    
-    void* page = malloc(PAGE_SIZE);
-    fileHandle.readPage(currentPage, page);
-    SlotDirectoryHeader header = _rbfm->getSlotDirectoryHeader(page);
-    free(page);
-
-    entriesReadOnPage=header.recordEntriesNumber;
     nextSlotNum=0;
   };
   ~RBFM_ScanIterator() {
